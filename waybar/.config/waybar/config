@@ -1,0 +1,74 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 38,
+    "spacing": 0,
+
+    "modules-left": ["hyprland/workspaces"],
+    "modules-center": ["clock"],
+    "modules-right": ["custom/vpn", "pulseaudio", "network", "cpu", "memory", "battery", "tray"],
+
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-click": "activate",
+        "sort-by-number": true,
+        "active-only": false
+    },
+
+    "clock": {
+        "format": "  {:%H:%M}",
+        "format-alt": "  {:%Y-%m-%d  %H:%M:%S}",
+        "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "  muted",
+        "format-icons": { "default": ["", "", ""] },
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "scroll-step": 5,
+        "tooltip": false
+    },
+
+    "network": {
+        "format-wifi": "  {essid}",
+        "format-ethernet": "  eth",
+        "format-disconnected": "  off",
+        "tooltip-format-wifi": "{signalStrength}%  {ipaddr}",
+        "tooltip-format-ethernet": "{ipaddr}",
+        "interval": 5
+    },
+
+    "cpu": {
+        "format": "  {usage}%",
+        "interval": 2,
+        "tooltip": false
+    },
+
+    "memory": {
+        "format": "  {percentage}%",
+        "tooltip-format": "{used:0.1f}G / {total:0.1f}G"
+    },
+
+    "battery": {
+        "states": { "warning": 30, "critical": 15 },
+        "format": "{icon} {capacity}%",
+        "format-charging": "  {capacity}%",
+        "format-full": "  full",
+        "format-icons": ["", "", "", "", ""],
+        "tooltip": false
+    },
+
+    "tray": {
+        "spacing": 8,
+        "icon-size": 16
+    },
+
+    "custom/vpn": {
+        "exec": "nmcli -t -f NAME,STATE connection show --active | grep -q '^Centiro SSTP VPN:' && echo '{\"text\":\"  VPN\",\"class\":\"connected\"}' || echo '{\"text\":\"  VPN\"}'",
+        "return-type": "json",
+        "interval": 5,
+        "on-click": "~/.config/wofi/scripts/vpn.sh",
+        "tooltip": false
+    }
+}

@@ -125,3 +125,8 @@ button:hover {
     padding-left: 6px;
     padding-right: 6px;
 }
+
+#custom-vpn.connected {
+    color: @green;
+    border-bottom: 2px solid @green;
+}
