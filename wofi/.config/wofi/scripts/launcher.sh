@@ -2,7 +2,7 @@
 
 SCRIPTS="$HOME/.config/wofi/scripts"
 
-choice=$(printf "  Apps\n  Power\n  Volume\n  Brightness\n  Calculator\n  VPN" \
+choice=$(printf "󰀻  Apps\n󰐥  Power\n󰕾  Volume\n󰃟  Brightness\n󰃬  Calculator\n󰖂  VPN" \
     | wofi --show dmenu \
            --prompt "Menu" \
            --width 320 --height 270 \
