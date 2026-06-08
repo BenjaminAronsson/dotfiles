@@ -426,9 +426,11 @@ hl.on("monitor.added", function()
     disable_edp()
 end)
 
--- Screenshots (Flameshot)
-hl.bind("Print",              hl.dsp.exec_cmd("flameshot gui"))
-hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("flameshot full -p " .. os.getenv("HOME") .. "/Pictures/Screenshots"))
+-- Screenshots (grim + slurp + swappy)
+-- Print: select area → annotate (draw, save with S, copy with Ctrl+C)
+-- Super+Print: full screen → annotate
+hl.bind("Print",              hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | swappy -f -"))
+hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("grim - | swappy -f -"))
 
 
 --------------------------------
