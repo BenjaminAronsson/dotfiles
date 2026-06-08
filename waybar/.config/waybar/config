@@ -16,46 +16,46 @@
     },
 
     "clock": {
-        "format": "  {:%H:%M}",
-        "format-alt": "  {:%Y-%m-%d  %H:%M:%S}",
+        "format": " {:%H:%M}",
+        "format-alt": " {:%Y-%m-%d  %H:%M:%S}",
         "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>"
     },
 
     "pulseaudio": {
         "format": "{icon} {volume}%",
-        "format-muted": "  muted",
-        "format-icons": { "default": ["", "", ""] },
+        "format-muted": " muted",
+        "format-icons": { "default": ["", "", ""] },
         "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
         "scroll-step": 5,
         "tooltip": false
     },
 
     "network": {
-        "format-wifi": "  {essid}",
-        "format-ethernet": "  eth",
-        "format-disconnected": "  off",
+        "format-wifi": " {essid}",
+        "format-ethernet": "󰈀 eth",
+        "format-disconnected": " off",
         "tooltip-format-wifi": "{signalStrength}%  {ipaddr}",
         "tooltip-format-ethernet": "{ipaddr}",
         "interval": 5
     },
 
     "cpu": {
-        "format": "  {usage}%",
+        "format": " {usage}%",
         "interval": 2,
         "tooltip": false
     },
 
     "memory": {
-        "format": "  {percentage}%",
+        "format": "󰍛 {percentage}%",
         "tooltip-format": "{used:0.1f}G / {total:0.1f}G"
     },
 
     "battery": {
         "states": { "warning": 30, "critical": 15 },
         "format": "{icon} {capacity}%",
-        "format-charging": "  {capacity}%",
-        "format-full": "  full",
-        "format-icons": ["", "", "", "", ""],
+        "format-charging": " {capacity}%",
+        "format-full": " full",
+        "format-icons": ["", "", "", "", ""],
         "tooltip": false
     },
 
@@ -65,10 +65,10 @@
     },
 
     "custom/vpn": {
-        "exec": "nmcli -t -f NAME,STATE connection show --active | grep -q '^Centiro SSTP VPN:' && echo '{\"text\":\"  VPN\",\"class\":\"connected\"}' || echo '{\"text\":\"  VPN\"}'",
+        "exec": "nmcli -t -f NAME,STATE connection show --active | grep -q '^Centiro SSTP VPN:' && echo '{\"text\":\" VPN\",\"class\":\"connected\"}' || echo '{\"text\":\" VPN\"}'",
         "return-type": "json",
         "interval": 5,
-        "on-click": "~/.config/wofi/scripts/vpn.sh",
+        "on-click": "bash ~/.config/wofi/scripts/vpn.sh",
         "tooltip": false
     }
 }
