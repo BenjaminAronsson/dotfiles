@@ -49,7 +49,8 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar & hyprpaper & dunst & swayosd-server")
+   hl.exec_cmd("waybar & dunst & swayosd-server")
+   hl.exec_cmd("/usr/local/bin/hyprpaper")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
 end)

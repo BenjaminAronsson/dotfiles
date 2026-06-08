@@ -19,8 +19,22 @@ choice=$(echo "$options" | wofi --show dmenu \
     --insensitive)
 
 case "$choice" in
-    *Connect)    nmcli connection up "$VPN_NAME" ;;
-    *Disconnect) nmcli connection down "$VPN_NAME" ;;
+    *Connect)
+        output=$(nmcli connection up "$VPN_NAME" 2>&1)
+        if [[ $? -eq 0 ]]; then
+            notify-send "VPN" "Connected to ${VPN_NAME}"
+        else
+            notify-send -u critical "VPN" "Failed to connect: $output"
+        fi
+        ;;
+    *Disconnect)
+        output=$(nmcli connection down "$VPN_NAME" 2>&1)
+        if [[ $? -eq 0 ]]; then
+            notify-send "VPN" "Disconnected from ${VPN_NAME}"
+        else
+            notify-send -u critical "VPN" "Failed to disconnect: $output"
+        fi
+        ;;
     *Status)
         if [[ -n "$status" ]]; then
             notify-send "VPN" "Connected: ${VPN_NAME}"
