@@ -49,7 +49,7 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar & dunst & swayosd-server")
+   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle")
    hl.exec_cmd("/usr/local/bin/hyprpaper")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
@@ -303,7 +303,7 @@ hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Laptop multimedia keys for volume and LCD brightness
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("swayosd-client --output-volume raise"),       { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("sh -c 'swayosd-client --output-volume raise && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0'"), { locked = true, repeating = true })
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("swayosd-client --output-volume lower"),       { locked = true, repeating = true })
 hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle"), { locked = true, repeating = true })
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"),  { locked = true, repeating = true })
@@ -332,27 +332,69 @@ local function first_external()
     end
 end
 
-local edp_workspaces = {}
+-- Monitor references appear as HL.Monitor userdata, tables, or plain strings
+-- depending on the API call; normalize to the name string
+local function monitor_name(m)
+    if m == nil then return nil end
+    if type(m) == "string" then return m end
+    local ok, name = pcall(function() return m.name end)
+    if ok then return name end
+    return nil
+end
+
+local function is_special(name)
+    return type(name) == "string" and name:match("^special") ~= nil
+end
+
+local LID_PARK_WS    = "11"  -- workspace kept on eDP-1 while lid is closed so 1-10 stay on external
+local edp_workspaces = {}    -- restore list; cleared only on restore/reclaim, never by sweeps
 local edp_active_ws  = nil
 
-local function move_workspaces_off_edp(target)
-    edp_workspaces = {}
-    local edp = hl.get_monitor("eDP-1")
-    edp_active_ws = edp and edp.active_workspace and edp.active_workspace.name
+-- Monitor:set_workspace() silently no-ops, so activate via the focus dispatchers:
+-- focus eDP-1 → switch workspace (created on the focused monitor) → focus back.
+-- All within one synchronous block, so the focus hop is invisible.
+local function activate_ws_on_edp(ws_name)
+    if not hl.get_monitor("eDP-1") then return end
+    local prev = hl.get_active_monitor()
+    hl.dispatch(hl.dsp.focus({ monitor = "eDP-1" }))
+    hl.dispatch(hl.dsp.focus({ workspace = tonumber(ws_name) or ws_name }))
+    if prev and prev.name ~= "eDP-1" then
+        hl.dispatch(hl.dsp.focus({ monitor = prev.name }))
+    end
+end
+
+local function park_edp()
+    activate_ws_on_edp(LID_PARK_WS)
+end
+
+-- Always park BEFORE sweeping: an enabled monitor must have an active workspace,
+-- so moving eDP-1's active workspace away makes Hyprland spawn a fresh one there
+-- (reentrant workspace.created churn that also invalidates workspace objects
+-- mid-iteration). Parked first, all swept workspaces are inactive and move cleanly;
+-- names are still collected before dispatching as a second guard.
+local function park_and_sweep_edp(target)
+    if #edp_workspaces == 0 then
+        local edp = hl.get_monitor("eDP-1")
+        edp_active_ws = edp and edp.active_workspace and edp.active_workspace.name
+        if edp_active_ws == LID_PARK_WS then edp_active_ws = nil end
+    end
+    park_edp()
+    local recorded = {}
+    for _, name in ipairs(edp_workspaces) do recorded[name] = true end
+    local to_move = {}
     for _, ws in ipairs(hl.get_workspaces()) do
-        if ws.monitor and ws.monitor.name == "eDP-1" then
-            table.insert(edp_workspaces, ws.name)
-            hl.dispatch(hl.dsp.workspace.move({ workspace = ws.name, monitor = target.name }))
+        if monitor_name(ws.monitor) == "eDP-1" and ws.name ~= LID_PARK_WS and not is_special(ws.name) then
+            table.insert(to_move, ws.name)
         end
+    end
+    for _, name in ipairs(to_move) do
+        if not recorded[name] then table.insert(edp_workspaces, name) end
+        hl.dispatch(hl.dsp.workspace.move({ workspace = name, monitor = target.name }))
     end
 end
 
 local function enable_edp()
     hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1, disabled = false })
-end
-
-local function disable_edp()
-    hl.monitor({ output = "eDP-1", disabled = true })
 end
 
 local function restore_edp_workspaces()
@@ -372,59 +414,145 @@ local function restore_edp_workspaces()
     end
     -- Activate the workspace that was active before lid close, falling back to the first restored one
     local target = (edp_active_ws and not active_on_external[edp_active_ws]) and edp_active_ws or first_restored
-    if target then
-        local edp = hl.get_monitor("eDP-1")
-        if edp then edp:set_workspace({ workspace = target }) end
-    end
+    if target then activate_ws_on_edp(target) end
     edp_workspaces = {}
     edp_active_ws  = nil
 end
 
--- Lid close: disable eDP-1 only when an external monitor is available
+local WALLPAPER = os.getenv("HOME") .. "/.config/backgrounds/nice-blue-background.png"
+
+local function ensure_wallpaper()
+    -- os.execute returns a number on Lua 5.1/LuaJIT but a boolean on 5.2+
+    local ok = os.execute("pgrep -x hyprpaper >/dev/null 2>&1")
+    if ok == true or ok == 0 then
+        hl.exec_cmd("hyprctl hyprpaper reload ," .. WALLPAPER)
+    else
+        hl.exec_cmd("/usr/local/bin/hyprpaper")
+    end
+end
+
+-- Lid / dock scenario matrix:
+--   open → close (no dock)     switch:on Lid      no external → skip; workspaces stay on eDP-1
+--   open → dock → close        switch:on Lid      park eDP-1 @ ws 11 + sweep
+--   open → close → dock        monitor.added      park + sweep (fires once per dock monitor)
+--   closed, partial undock     monitor.removed    externals remain → re-sweep orphans off eDP-1
+--   closed, full undock        monitor.removed    reclaim all workspaces to eDP-1
+--   closed + dock → open       switch:off Lid     restore swept workspaces to eDP-1
+--   closed → new workspace     workspace.created  redirect to external
+--   closed → new window        window.open        redirect; on park ws, move window itself
+--   startup/reload, closed     load timer         park + sweep (reload wipes Lua state)
+--   lid flaps within timers    all timers         re-check lid state before acting
+--   sleep / resume             hypridle           lock + dpms only; monitor events as above
+--
+-- eDP-1 is kept enabled (not disabled) while lid is closed: disabling it causes
+-- enterUnsafeState() on dock removal → crash in getViewsForWorkspace (aquamarine bug).
 hl.bind("switch:on:Lid Switch", function()
     local ext = first_external()
     if not ext then return end
-    move_workspaces_off_edp(ext)
-    disable_edp()
+    park_and_sweep_edp(ext)
+    hl.timer(function()
+        if not is_lid_closed() then return end
+        local ext2 = first_external()
+        if ext2 then park_and_sweep_edp(ext2) end -- second pass: catch late arrivals
+        ensure_wallpaper()
+    end, { timeout = 800, type = "oneshot" })
 end, { locked = true })
 
--- Lid open: re-enable eDP-1 then restore its workspaces after a short delay
 hl.bind("switch:off:Lid Switch", function()
     enable_edp()
-    hl.timer(restore_edp_workspaces, { timeout = 800, type = "oneshot" })
+    hl.timer(function()
+        if is_lid_closed() then return end
+        restore_edp_workspaces()
+        ensure_wallpaper()
+    end, { timeout = 800, type = "oneshot" })
 end, { locked = true })
 
--- Monitor removed while lid closed: if no externals remain, re-enable eDP-1 and reclaim workspaces
 hl.on("monitor.removed", function()
     if not is_lid_closed() then return end
-    if first_external() then return end
+    if first_external() then
+        -- Partial undock: Hyprland rehomes the removed monitor's workspaces on its own,
+        -- possibly onto eDP-1 — sweep after it has finished.
+        hl.timer(function()
+            if not is_lid_closed() then return end
+            local ext = first_external()
+            if not ext then return end
+            park_and_sweep_edp(ext)
+        end, { timeout = 300, type = "oneshot" })
+        return
+    end
     enable_edp()
     hl.timer(function()
-        local edp = hl.get_monitor("eDP-1")
-        if not edp then return end
+        -- Bail if externals reappeared meanwhile (suspend/resume, dock link retrain)
+        if first_external() or not is_lid_closed() then return end
+        if not hl.get_monitor("eDP-1") then return end
+        local to_reclaim = {}
         for _, ws in ipairs(hl.get_workspaces()) do
-            hl.dispatch(hl.dsp.workspace.move({ workspace = ws.name, monitor = "eDP-1" }))
+            if not is_special(ws.name) then table.insert(to_reclaim, ws.name) end
+        end
+        for _, name in ipairs(to_reclaim) do
+            hl.dispatch(hl.dsp.workspace.move({ workspace = name, monitor = "eDP-1" }))
         end
         local target = edp_active_ws or edp_workspaces[1]
         if not target then
-            local wss = hl.get_workspaces()
-            if #wss > 0 then target = wss[1].name end
+            for _, name in ipairs(to_reclaim) do
+                if name ~= LID_PARK_WS then target = name; break end
+            end
         end
-        if target then edp:set_workspace({ workspace = target }) end
+        if target then activate_ws_on_edp(target) end
         edp_workspaces = {}
         edp_active_ws  = nil
+        ensure_wallpaper()
     end, { timeout = 800, type = "oneshot" })
 end)
 
--- Monitor added while lid closed: disable eDP-1 if it is still active
 hl.on("monitor.added", function()
     if not is_lid_closed() then return end
     if not hl.get_monitor("eDP-1") then return end
     local ext = first_external()
     if not ext then return end
-    move_workspaces_off_edp(ext)
-    disable_edp()
+    park_and_sweep_edp(ext)
+    hl.timer(ensure_wallpaper, { timeout = 800, type = "oneshot" })
 end)
+
+hl.on("workspace.created", function(ws)
+    if not is_lid_closed() then return end
+    if monitor_name(ws.monitor) ~= "eDP-1" then return end
+    if ws.name == LID_PARK_WS or is_special(ws.name) then return end
+    local ext = first_external()
+    if not ext then return end
+    -- Park first: moving eDP-1's active workspace away would spawn yet another
+    -- workspace here and re-trigger this handler (infinite churn)
+    park_edp()
+    hl.dispatch(hl.dsp.workspace.move({ workspace = ws.name, monitor = ext.name }))
+end)
+
+hl.on("window.open", function(window)
+    if not is_lid_closed() then return end
+    local ws = window.workspace
+    if not ws or monitor_name(ws.monitor) ~= "eDP-1" then return end
+    local ext = first_external()
+    if not ext then return end
+    if ws.name == LID_PARK_WS then
+        -- Focus was on the invisible eDP-1 (follow_mouse): the park workspace must stay,
+        -- so move just the window to the external's visible workspace
+        if window.address and ext.active_workspace then
+            hl.exec_cmd(string.format("hyprctl dispatch movetoworkspacesilent %s,address:%s",
+                ext.active_workspace.name, window.address))
+        end
+        return
+    end
+    hl.dispatch(hl.dsp.workspace.move({ workspace = ws.name, monitor = ext.name }))
+end)
+
+-- Startup / config reload while lid closed: no event fires and a reload wipes the
+-- restore state above, so sweep once after monitors have settled.
+hl.timer(function()
+    if not is_lid_closed() then return end
+    local ext = first_external()
+    if not ext then return end
+    park_and_sweep_edp(ext)
+    ensure_wallpaper()
+end, { timeout = 1000, type = "oneshot" })
 
 -- Screenshots (grim + slurp + swappy)
 -- Print: select area → annotate (draw, save with S, copy with Ctrl+C)
