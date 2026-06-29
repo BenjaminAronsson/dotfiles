@@ -49,10 +49,11 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle")
-   hl.exec_cmd("/usr/local/bin/hyprpaper")
+   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh")
+   hl.exec_cmd("wl-paste --watch cliphist store")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
-   hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+   hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
+   hl.exec_cmd("sh -c 'sleep 1 && notify-send -t 3000 -u low \"Hyprland\" \"Ready\"'")
 end)
 
 
@@ -557,8 +558,14 @@ end, { timeout = 1000, type = "oneshot" })
 -- Screenshots (grim + slurp + swappy)
 -- Print: select area → annotate (draw, save with S, copy with Ctrl+C)
 -- Super+Print: full screen → annotate
-hl.bind("Print",              hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | swappy -f -"))
-hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("grim - | swappy -f -"))
+hl.bind("Print",              hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | swappy -f -'"))
+hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
+
+-- Clipboard history (cliphist)
+hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("sh -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
+
+-- Power/logout menu (wlogout)
+hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("wlogout"), { locked = true })
 
 
 --------------------------------

@@ -26,6 +26,7 @@
         "format-muted": " muted",
         "format-icons": { "default": ["", "", ""] },
         "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-right-click": "pavucontrol",
         "scroll-step": 5,
         "tooltip": false
     },
