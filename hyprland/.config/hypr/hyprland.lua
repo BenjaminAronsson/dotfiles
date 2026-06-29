@@ -49,7 +49,7 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh")
+   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
    hl.exec_cmd("wl-paste --watch cliphist store")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
@@ -214,7 +214,8 @@ hl.config({
 hl.config({
     misc = {
         force_default_wallpaper = 0,
-        disable_hyprland_logo   = 1,
+        disable_hyprland_logo   = 0,
+        background_color        = "rgb(1e1e2e)",
     },
 })
 
@@ -237,7 +238,7 @@ hl.config({
         kb_options = "caps:escape",
         kb_rules   = "",
 
-        follow_mouse = 1,
+        follow_mouse = 0,
 
         sensitivity = 0, -- -1.0 - 1.0, 0 means no modification.
 
@@ -565,7 +566,7 @@ hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("sh -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
 
 -- Power/logout menu (wlogout)
-hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("wlogout"), { locked = true })
+hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { locked = true })
 
 
 --------------------------------

@@ -16,6 +16,7 @@
     },
 
     "clock": {
+        "locale": "en_GB",
         "format": " {:%H:%M}",
         "format-alt": " {:%A %Y-%m-%d  %H:%M  W%V}",
         "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>"
