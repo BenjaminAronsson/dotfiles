@@ -34,7 +34,7 @@ hl.monitor({
 ---------------------
 
 -- Set programs that you use
-local terminal    = "kitty"
+local terminal    = "kitty --single-instance"
 local fileManager = "nautilus"
 local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scripts/launcher.sh"
 
@@ -53,6 +53,7 @@ hl.on("hyprland.start", function ()
    hl.exec_cmd("wl-paste --watch cliphist store")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
+   hl.exec_cmd("hyprctl dispatch exec '[workspace special:term silent] kitty --single-instance'")
    hl.exec_cmd("sh -c 'sleep 1 && notify-send -t 3000 -u low \"Hyprland\" \"Ready\"'")
 end)
 

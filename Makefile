@@ -1,4 +1,4 @@
-PACKAGES := backgrounds hyprland hyprlock hyprmocha hyprpaper kitty starship waybar wofi
+PACKAGES := backgrounds environment hyprland hyprlock hyprmocha hyprpaper kitty starship waybar wofi
 STOW     := stow --target=$(HOME) --dir=$(CURDIR)
 
 .PHONY: stow unstow restow $(PACKAGES)
