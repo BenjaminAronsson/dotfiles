@@ -21,6 +21,13 @@
 ------------------
 
 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
+-- Office layout: laptop | Dell H3WW5V3 | Dell 1G3X5V3, left to right
+-- Identified by desc: (make+model+serial) instead of port, since the two
+-- identical Dells swap DP-5/DP-6 depending on which port they're plugged into.
+hl.monitor({ output = "eDP-1", mode = "preferred",    position = "0x0",    scale = 1 })
+hl.monitor({ output = "desc:Dell Inc. DELL P2422HE H3WW5V3", mode = "1920x1080@60", position = "1920x0", scale = 1 })
+hl.monitor({ output = "desc:Dell Inc. DELL P2422HE 1G3X5V3", mode = "1920x1080@60", position = "3840x0", scale = 1 })
+
 hl.monitor({
     output   = "",
     mode     = "preferred",
