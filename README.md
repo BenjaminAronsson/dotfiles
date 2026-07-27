@@ -24,6 +24,7 @@ make unstow    # remove all symlinks
 make restow    # re-link after adding or removing files
 make kitty     # stow a single package
 make install-systemd # install sleep/idle settings
+make verify-systemd # verify systemd
 ```
 
 Remove any conflicting real files under `~/.config` before running `make stow` — Stow will refuse if a target path already exists as a non-symlink.
