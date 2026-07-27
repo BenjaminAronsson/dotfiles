@@ -26,7 +26,7 @@ while true; do
             sleep "$GRACE"
             read_bat
             if [ "$status" = "Discharging" ] && [ "${cap:-100}" -le "$EMERG" ]; then
-                systemctl suspend
+                systemctl hibernate
             fi
         elif [ "${cap:-100}" -le "$CRIT" ] && [ "$critted" -eq 0 ]; then
             dunstify -u critical -r "$NID" \
