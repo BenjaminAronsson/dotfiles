@@ -23,6 +23,14 @@ make stow      # symlink all packages into ~
 make unstow    # remove all symlinks
 make restow    # re-link after adding or removing files
 make kitty     # stow a single package
+
+sudo install -Dm644 \
+  ~/dotconfig/systemd/sleep.conf.d/50-laptop.conf \
+  /etc/systemd/sleep.conf.d/50-laptop.conf
+
+sudo install -Dm644 \
+  ~/dotconfig/systemd/logind.conf.d/50-laptop.conf \
+  /etc/systemd/logind.conf.d/50-laptop.conf
 ```
 
 Remove any conflicting real files under `~/.config` before running `make stow` — Stow will refuse if a target path already exists as a non-symlink.
