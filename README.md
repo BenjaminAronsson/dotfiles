@@ -146,6 +146,40 @@ logind what is actually possible and picks the deepest working mode. To enable
 real hibernation, follow the steps in the comment at the top of
 `systemd/logind.conf.d/80-laptop.conf`.
 
+## Power profiles
+
+`battery-monitor.sh` also drives `power-profiles-daemon`, because nothing else
+will: on GNOME or Plasma the desktop shell does it, and Hyprland has no
+equivalent, so otherwise the machine stays in whatever profile it booted with.
+
+| power source | profile |
+| --- | --- |
+| adapter in | `performance` |
+| on battery | `balanced` |
+| on battery, at or below `CRIT` (10%) | `power-saver` |
+
+It only acts when the wanted profile differs from the one it last set, so a
+profile you choose by hand holds until the power source actually changes.
+Override the choices with `AC_PROFILE` / `BAT_PROFILE` / `LOW_PROFILE`.
+
+Check and drive it by hand with:
+
+```bash
+powerprofilesctl get
+powerprofilesctl list
+journalctl -t battery-monitor    # every switch it has made
+```
+
+The monitor is started from `autostart.lua` on `hyprland.start`. It keeps itself
+single via `flock`, so the launch there is deliberately unguarded — do not add a
+`pgrep -f battery-monitor.sh || ...` guard back. That guard cannot work, because
+the launching shell's own command line has to contain the script name, and
+`pgrep -f` matches full command lines including that parent shell. It silently
+meant the monitor never started at all. The reasoning is in the script.
+
+Because it starts on `hyprland.start`, `hyprctl reload` does **not** pick it up;
+launch it by hand or log out and back in.
+
 ## Generated files
 
 noctalia writes generated theme files into `~/.config/kitty/themes/` and
