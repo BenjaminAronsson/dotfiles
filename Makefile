@@ -28,8 +28,10 @@ HOST := $(shell hostname)
 SYSTEMD_SRC := $(CURDIR)/systemd
 SYSTEMD_DST := /etc/systemd
 
-# Shared by every machine.
-COMMON  := starship backgrounds environment scripts hypridle
+# Shared by every machine. hypr-shared carries the Hyprland Lua that both
+# profiles require() -- currently the lid/dock handling, which is identical on
+# both and used to be maintained as two copies that drifted.
+COMMON  := starship backgrounds environment scripts hypridle hypr-shared
 
 # Laptop: modular Hyprland config, noctalia does the rest.
 LAPTOP  := hypr-modular kitty-modular

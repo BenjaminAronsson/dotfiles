@@ -53,10 +53,10 @@ Each top-level directory is a Stow package mirroring the `~/.config/` layout:
 ```
 
 Several packages target `~/.config/hypr/` (`hypr-modular`, `hypridle`,
-`scripts`). Stow handles this by unfolding — creating individual file symlinks
-inside that directory rather than one directory symlink. Do not collapse them
-into a single package; the split is what lets `hypridle` and `scripts` be shared
-across profiles.
+`scripts`, `hypr-shared`). Stow handles this by unfolding — creating individual
+file symlinks inside that directory rather than one directory symlink. Do not
+collapse them into a single package; the split is what lets `hypridle`,
+`scripts` and `hypr-shared` be shared across profiles.
 
 ## Hyprland config is Lua
 
@@ -76,11 +76,31 @@ identical panels distinguished only by serial.
 desk is detected. This happens at config *load*, so changing desk needs a
 `hyprctl reload`.
 
-`config/liddock.lua` handles the laptop lid while docked. It is subtle, was
-arrived at empirically, and its comments record why each guard exists — in
-particular that eDP-1 must stay *enabled* while the lid is closed, because
-disabling it crashes on dock removal (aquamarine bug). Read the scenario matrix
-at the top before changing anything there.
+## Lid / dock handling is shared
+
+Both machines are laptops that dock, and both need identical lid behaviour, so
+the logic lives in one place: `hypr-shared/.config/hypr/shared/liddock.lua`,
+deployed to every machine as part of `COMMON` and pulled in with
+`require("shared.liddock").setup{...}`.
+
+It is subtle and was arrived at empirically; its comments record why each guard
+exists — in particular that the laptop panel must stay *enabled* while the lid
+is closed, because disabling it crashes on dock removal (aquamarine bug). Read
+the scenario matrix in that file before changing anything.
+
+Each profile passes only its own details:
+
+| | `hypr-modular` (laptop) | `hypr-classic` (desktop) |
+|---|---|---|
+| `laptop_output` | `MONITOR3` (a `desc:` string) | `"eDP-1"` (connector name) |
+| `after_change` | none — noctalia re-applies its own wallpaper | `ensure_wallpaper` for hyprpaper |
+
+**Do not fork this file back into the profiles.** It was two hand-maintained
+copies until 2026-07-27, which is exactly how a `position = "auto"` bug in
+`enable_edp()` came to exist in both at once: it re-applied the panel's monitor
+rule on every lid open with "auto", relocating the physically-left panel to the
+far right of the layout. Anything genuinely machine-specific belongs in the
+`setup{}` call, not in a second copy.
 
 ## Keybinding conflicts
 
