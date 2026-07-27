@@ -22,7 +22,7 @@ while true; do
         if [ "${cap:-100}" -le "$EMERG" ]; then
             dunstify -u critical -r "$NID" -t 0 \
                 "Battery critically low (${cap}%)" \
-                "Suspending in ${GRACE}s — plug in now to cancel."
+                "Hibernating in ${GRACE}s — plug in now to cancel."
             sleep "$GRACE"
             read_bat
             if [ "$status" = "Discharging" ] && [ "${cap:-100}" -le "$EMERG" ]; then
