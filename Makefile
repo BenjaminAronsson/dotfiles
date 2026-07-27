@@ -1,19 +1,73 @@
-PACKAGES := backgrounds environment hyprland hyprlock hyprmocha hyprpaper kitty starship waybar wofi
-STOW     := stow --target=$(HOME) --dir=$(CURDIR)
+# Dotfiles deployment.
+#
+# Packages are grouped into machine profiles, because the two machines run
+# different desktops:
+#
+#   cachyos-dell  Dell Precision 5560 laptop, CachyOS + noctalia shell.
+#                 noctalia provides the bar, launcher, notifications,
+#                 wallpaper, clipboard, screenshots, lock screen and polkit
+#                 agent, so none of waybar/wofi/dunst/hyprpaper is used, and
+#                 the theme is generated from the wallpaper.
+#
+#   classic       Desktop, hand-assembled stack: waybar + wofi + dunst +
+#                 hyprpaper + hyprlock, all themed Catppuccin Mocha.
+#
+# Usage:
+#   make                  deploy the profile matching this machine's hostname
+#   make cachyos-dell     deploy the laptop profile explicitly
+#   make classic          deploy the desktop profile explicitly
+#   make unstow           remove every symlink this repo owns
+#   make restow           re-link (use after adding or removing files)
+#   make kitty            stow a single package
+#   make list             show which profile this machine resolves to
 
-.PHONY: stow unstow restow $(PACKAGES)
+STOW := stow --target=$(HOME) --dir=$(CURDIR)
+HOST := $(shell hostname)
 
-stow: ## Symlink all packages into ~
-	$(STOW) $(PACKAGES)
+# Shared by every machine.
+COMMON  := starship backgrounds environment scripts hypridle
+
+# Laptop: modular Hyprland config, noctalia does the rest.
+LAPTOP  := hypr-modular kitty-modular
+
+# Desktop: monolithic Hyprland config plus the full hand-rolled stack.
+CLASSIC := hypr-classic kitty-classic waybar wofi dunst hyprpaper hyprlock hyprmocha swappy flameshot
+
+# Everything, for unstow/restow.
+ALL := $(COMMON) $(LAPTOP) $(CLASSIC)
+
+# Hostname -> profile. Add new machines here.
+ifeq ($(HOST),cachyos-dell)
+PROFILE := cachyos-dell
+PROFILE_PKGS := $(LAPTOP)
+else
+PROFILE := classic
+PROFILE_PKGS := $(CLASSIC)
+endif
+
+.PHONY: all cachyos-dell classic unstow restow list help $(ALL)
+
+all: $(PROFILE) ## Deploy the profile matching this machine
+
+cachyos-dell: ## Deploy the laptop profile (CachyOS + noctalia)
+	$(STOW) $(COMMON) $(LAPTOP)
+
+classic: ## Deploy the desktop profile (waybar + wofi + dunst + Mocha)
+	$(STOW) $(COMMON) $(CLASSIC)
 
 unstow: ## Remove all symlinks from ~
-	$(STOW) --delete $(PACKAGES)
+	-$(STOW) --delete $(ALL)
 
-restow: ## Re-link all packages (use after adding or removing files)
-	$(STOW) --restow $(PACKAGES)
+restow: ## Re-link the current profile (use after adding or removing files)
+	$(STOW) --restow $(COMMON) $(PROFILE_PKGS)
 
-$(PACKAGES): ## Stow a single package, e.g. make kitty
+$(ALL): ## Stow a single package, e.g. make kitty
 	$(STOW) $@
 
-help:
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*##"}; {printf "%-10s %s\n", $$1, $$2}'
+list: ## Show the detected machine and what it would deploy
+	@echo "hostname : $(HOST)"
+	@echo "profile  : $(PROFILE)"
+	@echo "packages : $(COMMON) $(PROFILE_PKGS)"
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*##"}; {printf "  %-14s %s\n", $$1, $$2}'
