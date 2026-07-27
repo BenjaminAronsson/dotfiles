@@ -75,6 +75,12 @@ MONITOR2 = first_attached({
 MONITOR3 = LAPTOP
 PRIMARY_MONITOR = MONITOR1
 
+-- Where the laptop panel sits. Shared with monitors.lua, which declares the
+-- rule, and liddock.lua, which re-applies it when the lid opens. Both must
+-- agree: an "auto" position in either place puts the panel to the *right* of
+-- the externals, because auto means "wherever there is free space".
+LAPTOP_POSITION = "0x0"
+
 -- Where we think we are. Only used for the startup notification, but handy
 -- when a workspace lands somewhere unexpected.
 LOCATION = attached("1W6YK03") and "home"

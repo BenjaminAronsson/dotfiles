@@ -102,8 +102,16 @@ local function park_and_sweep_edp(target)
     end
 end
 
+-- Re-assert the laptop panel's rule. Keyed on MONITOR3 (the "desc:" string), not
+-- on the connector name, so this updates the same rule monitors.lua declared
+-- rather than adding a second, higher-priority one that shadows it forever.
+--
+-- The position must be LAPTOP_POSITION, never "auto": auto means "wherever there
+-- is free space", which is always to the *right* of the externals. Since this
+-- runs on every lid open, an "auto" here silently relocated the physically-left
+-- laptop panel to the far right of the layout on the first lid open of a session.
 local function enable_edp()
-    hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1, disabled = false })
+    hl.monitor({ output = MONITOR3, mode = "preferred", position = LAPTOP_POSITION, scale = 1, disabled = false })
 end
 
 local function restore_edp_workspaces()

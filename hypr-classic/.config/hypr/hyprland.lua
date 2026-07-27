@@ -24,7 +24,13 @@
 -- Office layout: laptop | Dell H3WW5V3 | Dell 1G3X5V3, left to right
 -- Identified by desc: (make+model+serial) instead of port, since the two
 -- identical Dells swap DP-5/DP-6 depending on which port they're plugged into.
-hl.monitor({ output = "eDP-1", mode = "preferred",    position = "0x0",    scale = 1 })
+-- Where the laptop panel sits. Also used by enable_edp() further down, which
+-- re-applies this rule on every lid open. Both must agree: an "auto" position
+-- there means "wherever there is free space", which is always to the *right* of
+-- the externals, and silently relocates the physically-left panel.
+local LAPTOP_POSITION = "0x0"
+
+hl.monitor({ output = "eDP-1", mode = "preferred",    position = LAPTOP_POSITION, scale = 1 })
 hl.monitor({ output = "desc:Dell Inc. DELL P2422HE H3WW5V3", mode = "1920x1080@60", position = "1920x0", scale = 1 })
 hl.monitor({ output = "desc:Dell Inc. DELL P2422HE 1G3X5V3", mode = "1920x1080@60", position = "3840x0", scale = 1 })
 
@@ -403,8 +409,12 @@ local function park_and_sweep_edp(target)
     end
 end
 
+-- Re-assert the laptop panel's rule on lid open. The position must be
+-- LAPTOP_POSITION, never "auto": auto places the panel to the right of the
+-- externals, and since this runs on every lid open it stuck the physically-left
+-- panel at the far right of the layout until the next `hyprctl reload`.
 local function enable_edp()
-    hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1, disabled = false })
+    hl.monitor({ output = "eDP-1", mode = "preferred", position = LAPTOP_POSITION, scale = 1, disabled = false })
 end
 
 local function restore_edp_workspaces()

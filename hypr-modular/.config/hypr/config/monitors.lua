@@ -17,7 +17,7 @@
 hl.monitor({
     output = "desc:LG Display 0x06B3",
     mode = "preferred",
-    position = "0x0",
+    position = LAPTOP_POSITION,
     scale = 1,
 })
 
