@@ -38,6 +38,57 @@ file or directory, move it aside first.
 
 Adding a machine: add a `PROFILE` branch in the `Makefile` keyed on hostname.
 
+## Setting up a new machine
+
+```bash
+# 1. Install the tools the profile expects (see Dependencies below).
+#    On Arch always use -Syu, never -Sy: a partial upgrade leaves the package
+#    database ahead of the installed system and downloads then 404.
+sudo pacman -Syu
+sudo pacman -S --needed stow <profile deps>
+
+# 2. Clone.
+git clone https://github.com/BenjaminAronsson/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+
+# 3. Check what it thinks this machine is. If the hostname is unknown it
+#    falls back to the classic profile — add a branch in the Makefile.
+make list
+
+# 4. Clear conflicts. Stow will not overwrite real files, and a fresh install
+#    ships defaults for most of these. Move them aside rather than deleting:
+mkdir -p ~/config-backup
+for f in starship.toml kitty/kitty.conf hypr; do
+    [ -e ~/.config/$f ] && [ ! -L ~/.config/$f ] && mv ~/.config/$f ~/config-backup/
+done
+
+# 5. Deploy, then verify nothing is left unlinked.
+make
+ls -l ~/.config/hypr/
+```
+
+Then log out and back in, so Hyprland picks up the new config and the autostart
+entries (hypridle, battery monitor) actually start.
+
+**Symlinks must be relative.** Stow only recognises links it made itself; a
+hand-made absolute symlink reads as "existing target not owned by stow" and
+aborts the whole run. If that happens, delete the offending links and re-run
+`make` — do not use `--adopt`, which pulls the target's contents into the repo.
+
+## Dependencies
+
+Both profiles need: `stow` `hyprland` `kitty` `starship` `hypridle`
+`brightnessctl` `libnotify`
+
+**Laptop** additionally: `noctalia` `ttf-meslo-nerd` `satty`
+
+**Desktop** additionally: `waybar` `wofi` `dunst` `hyprpaper` `hyprlock`
+`swayosd` `cliphist` `grim` `slurp` `swappy` `wlogout` `playerctl` `nautilus`
+`ttf-cascadia-code-nerd`
+
+A missing font fails silently — the terminal just falls back to a default
+rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
+
 ## Packages
 
 **Shared** — `starship` `backgrounds` `environment` `scripts` `hypridle`
