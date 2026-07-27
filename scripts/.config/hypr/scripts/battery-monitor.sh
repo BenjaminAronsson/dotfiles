@@ -22,6 +22,17 @@ notify() { # urgency, summary, body, [timeout]
     notify-send -u "$1" -r "$NID" ${4:+-t "$4"} "$2" "$3"
 }
 
+# Tell the user what will actually happen, rather than promising hibernation on
+# a machine that cannot hibernate. Mirrors the choice sleep.sh will make.
+sleep_verb() {
+    if [ "$(busctl call org.freedesktop.login1 /org/freedesktop/login1 \
+            org.freedesktop.login1.Manager CanHibernate 2>/dev/null)" = 's "yes"' ]; then
+        echo "Hibernating"
+    else
+        echo "Suspending"
+    fi
+}
+
 read_bat() {
     status=$(cat "$BAT/status" 2>/dev/null)
     cap=$(cat "$BAT/capacity" 2>/dev/null)
@@ -32,11 +43,11 @@ while true; do
     if [ "$status" = "Discharging" ]; then
         if [ "${cap:-100}" -le "$EMERG" ]; then
             notify critical "Battery critically low (${cap}%)" \
-                "Suspending in ${GRACE}s — plug in now to cancel." 0
+                "$(sleep_verb) in ${GRACE}s — plug in now to cancel." 0
             sleep "$GRACE"
             read_bat
             if [ "$status" = "Discharging" ] && [ "${cap:-100}" -le "$EMERG" ]; then
-                systemctl suspend
+                "$(dirname "$0")/sleep.sh" emergency
             fi
         elif [ "${cap:-100}" -le "$CRIT" ] && [ "$critted" -eq 0 ]; then
             notify critical "Battery critical: ${cap}%" "Plug in your charger."

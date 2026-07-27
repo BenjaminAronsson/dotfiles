@@ -24,6 +24,10 @@
 STOW := stow --target=$(HOME) --dir=$(CURDIR)
 HOST := $(shell hostname)
 
+# System-level config. Not stowed: it belongs to root, under /etc.
+SYSTEMD_SRC := $(CURDIR)/systemd
+SYSTEMD_DST := /etc/systemd
+
 # Shared by every machine.
 COMMON  := starship backgrounds environment scripts hypridle
 
@@ -45,7 +49,8 @@ PROFILE := classic
 PROFILE_PKGS := $(CLASSIC)
 endif
 
-.PHONY: all cachyos-dell classic unstow restow list help $(ALL)
+.PHONY: all cachyos-dell classic unstow restow list help \
+        install-systemd uninstall-systemd verify-systemd $(ALL)
 
 all: $(PROFILE) ## Deploy the profile matching this machine
 
@@ -63,6 +68,28 @@ restow: ## Re-link the current profile (use after adding or removing files)
 
 $(ALL): ## Stow a single package, e.g. make kitty
 	$(STOW) $@
+
+install-systemd: ## Install lid/sleep policy into /etc (needs sudo)
+	sudo install -Dm644 \
+		$(SYSTEMD_SRC)/sleep.conf.d/80-laptop.conf \
+		$(SYSTEMD_DST)/sleep.conf.d/80-laptop.conf
+	sudo install -Dm644 \
+		$(SYSTEMD_SRC)/logind.conf.d/80-laptop.conf \
+		$(SYSTEMD_DST)/logind.conf.d/80-laptop.conf
+	@echo "Installed. Apply with: sudo systemctl restart systemd-logind"
+	@echo "(this ends the graphical session — save work first)"
+
+uninstall-systemd: ## Remove the installed lid/sleep policy from /etc
+	sudo rm -f $(SYSTEMD_DST)/sleep.conf.d/80-laptop.conf
+	sudo rm -f $(SYSTEMD_DST)/logind.conf.d/80-laptop.conf
+
+verify-systemd: ## Show the effective systemd sleep/lid configuration
+	systemd-analyze cat-config systemd/sleep.conf
+	systemd-analyze cat-config systemd/logind.conf
+	@echo
+	@echo "Can this machine hibernate?"
+	@busctl call org.freedesktop.login1 /org/freedesktop/login1 \
+		org.freedesktop.login1.Manager CanHibernate
 
 list: ## Show the detected machine and what it would deploy
 	@echo "hostname : $(HOST)"

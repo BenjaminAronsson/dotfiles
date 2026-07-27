@@ -119,6 +119,33 @@ List what is attached:
 hyprctl monitors all | grep -E '^Monitor|description:'
 ```
 
+## Sleep, lid and system config
+
+The `systemd/` directory is **not** stowed — it is root-owned config under
+`/etc`, installed separately:
+
+```bash
+make install-systemd     # copy lid/sleep policy into /etc (needs sudo)
+make verify-systemd      # show effective config + whether hibernation works
+make uninstall-systemd   # remove it again
+sudo systemctl restart systemd-logind   # apply (ends the graphical session)
+```
+
+`HandleLidSwitchDocked=ignore` is the key setting: it stops logind suspending
+the machine when the lid closes with an external monitor attached, which is what
+allows `liddock.lua` to move workspaces to the external instead.
+
+**Hibernation is not available on the laptop.** Its only swap is zram, which
+lives in RAM and therefore cannot hold a hibernation image, and there is no
+`resume=` kernel parameter — `CanHibernate` reports `na`. Anything that names
+`systemctl hibernate` or `suspend-then-hibernate` directly will silently fail
+there, including the low-battery safety net.
+
+So both hypridle and `battery-monitor.sh` call `scripts/sleep.sh`, which asks
+logind what is actually possible and picks the deepest working mode. To enable
+real hibernation, follow the steps in the comment at the top of
+`systemd/logind.conf.d/80-laptop.conf`.
+
 ## Generated files
 
 noctalia writes generated theme files into `~/.config/kitty/themes/` and
