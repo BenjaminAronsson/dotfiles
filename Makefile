@@ -28,6 +28,12 @@ HOST := $(shell hostname)
 SYSTEMD_SRC := $(CURDIR)/systemd
 SYSTEMD_DST := /etc/systemd
 
+# SDDM login screen. Also not stowed: the drop-in belongs to root under /etc,
+# and the theme variant has to live beside the theme it extends, under
+# /usr/share, where the unprivileged `sddm` user can read it before login.
+SDDM_SRC   := $(CURDIR)/sddm
+SDDM_THEME := /usr/share/sddm/themes/sddm-astronaut-theme
+
 # Shared by every machine. hypr-shared carries the Hyprland Lua that both
 # profiles require() -- currently the lid/dock handling, which is identical on
 # both and used to be maintained as two copies that drifted.
@@ -52,7 +58,8 @@ PROFILE_PKGS := $(CLASSIC)
 endif
 
 .PHONY: all cachyos-dell classic unstow restow list help \
-        install-systemd uninstall-systemd verify-systemd $(ALL)
+        install-systemd uninstall-systemd verify-systemd \
+        install-sddm uninstall-sddm verify-sddm $(ALL)
 
 all: $(PROFILE) ## Deploy the profile matching this machine
 
@@ -92,6 +99,46 @@ verify-systemd: ## Show the effective systemd sleep/lid configuration
 	@echo "Can this machine hibernate?"
 	@busctl call org.freedesktop.login1 /org/freedesktop/login1 \
 		org.freedesktop.login1.Manager CanHibernate
+
+install-sddm: ## Install the Catppuccin Mocha login screen (needs sudo)
+	@test -d $(SDDM_THEME) || { \
+		echo "sddm-astronaut-theme is not installed. First run:"; \
+		echo "  paru -S sddm-astronaut-theme"; \
+		exit 1; }
+	sudo install -Dm644 \
+		$(SDDM_SRC)/themes/catppuccin-mocha.conf \
+		$(SDDM_THEME)/Themes/catppuccin-mocha.conf
+	sudo install -Dm644 \
+		$(CURDIR)/backgrounds/.config/backgrounds/nice-blue-background.png \
+		$(SDDM_THEME)/Backgrounds/nice-blue-background.png
+	sudo sed -i 's|^ConfigFile=.*|ConfigFile=Themes/catppuccin-mocha.conf|' \
+		$(SDDM_THEME)/metadata.desktop
+	@# Repair an upstream typo: Main.qml falls back to `Screen.ScreenWidth`,
+	@# which is not a QML property, so a blank ScreenWidth leaves the root
+	@# Pane's width undefined. Without this the greeter cannot size itself to
+	@# the actual screen and renders letterboxed in black. Idempotent.
+	sudo sed -i 's|Screen\.ScreenWidth|Screen.width|g' $(SDDM_THEME)/Main.qml
+	sudo install -Dm644 \
+		$(SDDM_SRC)/sddm.conf.d/10-theme.conf \
+		/etc/sddm.conf.d/10-theme.conf
+	@echo
+	@echo "Installed. Check it without logging out:  make verify-sddm"
+	@echo "Upgrading sddm-astronaut-theme rewrites metadata.desktop and"
+	@echo "reverts the variant -- re-run this target if the greeter changes."
+
+uninstall-sddm: ## Revert to the unstyled default greeter
+	sudo rm -f /etc/sddm.conf.d/10-theme.conf
+	sudo rm -f $(SDDM_THEME)/Themes/catppuccin-mocha.conf
+	sudo rm -f $(SDDM_THEME)/Backgrounds/nice-blue-background.png
+
+verify-sddm: ## Preview the greeter in a window, without logging out
+	@echo "Effective theme:"
+	@grep -h '^Current=' /etc/sddm.conf /etc/sddm.conf.d/*.conf 2>/dev/null | tail -1
+	@echo "Selected variant:"
+	@grep -h '^ConfigFile=' $(SDDM_THEME)/metadata.desktop 2>/dev/null
+	@echo
+	@echo "Opening a preview window (close it to return)..."
+	sddm-greeter-qt6 --test-mode --theme $(SDDM_THEME)
 
 list: ## Show the detected machine and what it would deploy
 	@echo "hostname : $(HOST)"

@@ -131,6 +131,43 @@ make uninstall-systemd   # remove it again
 sudo systemctl restart systemd-logind   # apply (ends the graphical session)
 ```
 
+Likewise `sddm/`, which themes the login screen:
+
+```bash
+paru -S sddm-astronaut-theme   # once; the theme this config extends
+make install-sddm              # variant + drop-in into /etc and /usr/share
+make verify-sddm               # preview the greeter in a window
+make uninstall-sddm            # back to the default greeter
+```
+
+`/etc/sddm.conf` originally had no `[Theme]` section, so SDDM fell back to its
+built-in unstyled Qt form. `sddm/sddm.conf.d/10-theme.conf` selects the theme
+and `sddm/themes/catppuccin-mocha.conf` is a hand-written Mocha variant, since
+the upstream theme ships ten variants and none of them is Catppuccin.
+
+Two constraints worth knowing before editing it. The greeter runs as the
+unprivileged `sddm` user *before* login, so it cannot read anything under
+`/home/benjamin` (mode 700) — the wallpaper is copied into the theme directory
+instead of referenced from `~/.config/backgrounds`.
+
+`install-sddm` also edits two pacman-owned files in place, so **upgrading the
+theme reverts both** — re-run the target to restore them:
+
+- `metadata.desktop`, whose `ConfigFile=` line selects the variant.
+- `Main.qml`, to fix an upstream typo on line 18. It reads
+  `width: config.ScreenWidth || Screen.ScreenWidth`, and `Screen.ScreenWidth`
+  is not a QML property, so the fallback yields `undefined`. This matters
+  because `ScreenWidth`/`ScreenHeight` are assigned straight to the root
+  `Pane`, not treated as hints: any fixed value letterboxes the greeter in
+  black, and the correct size differs docked (three monitors) from undocked.
+  Blanking them in the variant is only safe once the fallback works.
+
+The variant uses `MesloLGL Nerd Font` rather than the `JetBrainsMono Nerd Font`
+named in `hyprlock.conf`, because only Meslo is actually installed here
+(`ttf-meslo-nerd`). `hyprlock` belongs to the `classic` profile and is not
+deployed on the laptop, so that missing font is currently latent — it will bite
+on the desktop.
+
 `HandleLidSwitchDocked=ignore` is the key setting: it stops logind suspending
 the machine when the lid closes with an external monitor attached, which is what
 allows `liddock.lua` to move workspaces to the external instead.
