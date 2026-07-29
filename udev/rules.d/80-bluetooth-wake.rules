@@ -1,0 +1,40 @@
+# Let the Bluetooth radio wake the machine from suspend. Installed to
+# /etc/udev/rules.d/ by `make install-udev` — system config, so it is not
+# stowed.
+#
+# Why this exists: with the lid shut, pressing a key on the Bluetooth keyboard
+# would not wake the laptop, and after waking it some other way the keyboard
+# stayed dead for roughly 45 seconds. Those are two symptoms of one cause.
+#
+# The kernel leaves power/wakeup on the Intel controller (8087:0026) set to
+# "disabled" by default, even though the device advertises Remote Wakeup in its
+# USB descriptor (bmAttributes 0xe0) and BlueZ already has the keyboard marked
+# WakeAllowed=yes. With wakeup disabled the controller is not armed, so btusb
+# lets it go down hard across s2idle and the link state is lost:
+#
+#   bluetoothd: Controller resume with wake event 0x0     <- BT did not wake us
+#   hci0: ACL packet for unknown connection handle 512    <- keyboard still
+#                                                            talking over a link
+#                                                            the host forgot
+#   connect to DC:2C:26:F3:51:F3: Operation already in progress (114)
+#
+# The keyboard believes the pre-suspend link is still up and keeps sending on
+# the old handle; the controller comes back with no such handle and drops the
+# packets, while BlueZ's reconnect attempts fail against the stale connection
+# object still held in the kernel. Nothing recovers until the link supervision
+# timeout finally expires — hence the wait.
+#
+# Arming the controller as a wake source keeps the link alive across suspend,
+# which addresses both halves at once.
+#
+# The alternative that comes up first when searching — a systemd-sleep hook
+# that disconnects HID devices before suspending — makes reconnect fast but
+# permanently rules out waking by keyboard, because no link is left to wake
+# over. It trades the goal for the symptom. Do not "fix" this that way.
+#
+#   make verify-udev     show whether the radio is currently armed
+#
+# To undo for a single boot, without touching this rule:
+#   echo disabled | sudo tee /sys/bus/usb/devices/3-14/power/wakeup
+
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="8087", ATTR{idProduct}=="0026", ATTR{power/wakeup}="enabled"

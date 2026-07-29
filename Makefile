@@ -28,6 +28,18 @@ HOST := $(shell hostname)
 SYSTEMD_SRC := $(CURDIR)/systemd
 SYSTEMD_DST := /etc/systemd
 
+# Device policy, also root-owned under /etc. Kept apart from install-systemd
+# because it is udev, not systemd, config — but it is the other half of making
+# sleep behave, so the two are usually installed together.
+UDEV_SRC := $(CURDIR)/udev
+UDEV_DST := /etc/udev
+
+# The Bluetooth controller the wake rule arms. Repeated here so that
+# verify-udev and install-udev can find the device without hardcoding a USB
+# bus path, which changes between ports and reboots.
+BT_VENDOR  := 8087
+BT_PRODUCT := 0026
+
 # SDDM login screen. Also not stowed: the drop-in belongs to root under /etc,
 # and the theme variant has to live beside the theme it extends, under
 # /usr/share, where the unprivileged `sddm` user can read it before login.
@@ -74,6 +86,7 @@ endif
 
 .PHONY: all cachyos-dell classic unstow restow list help \
         install-systemd uninstall-systemd verify-systemd \
+        install-udev uninstall-udev verify-udev \
         install-sddm uninstall-sddm verify-sddm $(ALL)
 
 all: $(PROFILE) ## Deploy the profile matching this machine
@@ -119,6 +132,42 @@ verify-systemd: ## Show the effective systemd sleep/lid configuration
 	@echo "Can this machine hibernate?"
 	@busctl call org.freedesktop.login1 /org/freedesktop/login1 \
 		org.freedesktop.login1.Manager CanHibernate
+
+install-udev: ## Let the Bluetooth radio wake the machine (needs sudo)
+	sudo install -Dm644 \
+		$(UDEV_SRC)/rules.d/80-bluetooth-wake.rules \
+		$(UDEV_DST)/rules.d/80-bluetooth-wake.rules
+	sudo udevadm control --reload
+	@# Apply to the already-enumerated controller, so the rule takes effect
+	@# now rather than at the next boot.
+	sudo udevadm trigger --action=add --subsystem-match=usb \
+		--attr-match=idVendor=$(BT_VENDOR) --attr-match=idProduct=$(BT_PRODUCT)
+	@echo
+	@echo "Installed and applied. Confirm with: make verify-udev"
+
+uninstall-udev: ## Remove the Bluetooth wake rule from /etc
+	sudo rm -f $(UDEV_DST)/rules.d/80-bluetooth-wake.rules
+	sudo udevadm control --reload
+	@echo "Removed. The radio stays armed until the next reboot."
+
+verify-udev: ## Show whether the Bluetooth radio may wake the machine
+	@found=; for d in /sys/bus/usb/devices/*/; do \
+		[ "$$(cat $$d/idVendor 2>/dev/null)" = "$(BT_VENDOR)" ] || continue; \
+		[ "$$(cat $$d/idProduct 2>/dev/null)" = "$(BT_PRODUCT)" ] || continue; \
+		found=1; \
+		echo "controller $$(basename $$d) power/wakeup = $$(cat $$d/power/wakeup)"; \
+	done; \
+	[ -n "$$found" ] || echo "controller $(BT_VENDOR):$(BT_PRODUCT) not found"
+	@echo
+	@echo "Wake permission per paired device (BlueZ):"
+	@bluetoothctl devices Paired | while read -r _ mac name; do \
+		printf '  %-24s %s\n' "$$name" \
+			"$$(bluetoothctl info $$mac | sed -n 's/.*WakeAllowed: /WakeAllowed=/p')"; \
+	done
+	@echo
+	@echo "What woke the machine last time (0x0 means it was not Bluetooth):"
+	@journalctl -b --no-pager -g 'Controller resume with wake event' \
+		-n 1 -o cat || echo "  no resume this boot"
 
 install-sddm: ## Install the Catppuccin Mocha login screen (needs sudo)
 	@test -d $(SDDM_THEME) || { \
