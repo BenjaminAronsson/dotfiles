@@ -58,6 +58,14 @@ file symlinks inside that directory rather than one directory symlink. Do not
 collapse them into a single package; the split is what lets `hypridle`,
 `scripts` and `hypr-shared` be shared across profiles.
 
+`noctalia` is the one package that does not fit this shape: it also carries
+`.local/state/noctalia/settings.toml`, because that is where noctalia persists
+everything its settings UI can change. It is listed in `NOFOLD` rather than
+`LAPTOP` in the `Makefile` and stowed with `--no-folding`. Do not move it into
+`LAPTOP`. Both directories it targets also hold state noctalia writes itself,
+and on a machine where those directories do not exist yet, ordinary stow folds
+and symlinks `~/.config` and `~/.local` *themselves* into this repo.
+
 ## Hyprland config is Lua
 
 Both machines use Hyprland's Lua config, not the classic `hyprland.conf` syntax.
@@ -113,6 +121,27 @@ therefore lives on `SUPER+ALT+[1-3]`.
 noctalia generates theme files into `~/.config/kitty/themes/` and similar
 locations. These must not be tracked. Only `kitty.conf` is stowed, keeping
 `~/.config/kitty` a real directory for noctalia to write into.
+
+## noctalia settings precedence
+
+Two files, and the one that is *not* hand-authored wins:
+
+- `~/.config/noctalia/config.toml` — hand-edited, stowed.
+- `~/.local/state/noctalia/settings.toml` — written by the settings UI and by
+  `noctalia msg`; also stowed. **Overrides `config.toml` key for key.**
+
+This has already caused one bug: `config.toml` asked for the `m3-tonal-spot`
+palette while `settings.toml` said `muted`, so the palette silently never
+applied, and a lock screen laid out under one palette rendered under another.
+Set anything the UI can own through the IPC (`noctalia msg color-scheme-set`,
+`theme-mode-set`), not by editing `config.toml`, and confirm with
+`noctalia config export merged`. `noctalia config validate` reports unknown and
+deprecated keys — `shell.ui_scale` is one such dead key, removed from both
+files; v5 scales per component (`bar.default.scale`, `notifications.scale`).
+
+noctalia rewrites `settings.toml` in full on every change, so **comments in it
+do not survive** — document in `README.md` instead. It rewrites in place rather
+than via atomic rename, which is why stowing it as a symlink works at all.
 
 ## Theme
 

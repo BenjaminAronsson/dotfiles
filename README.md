@@ -58,9 +58,13 @@ make list
 # 4. Clear conflicts. Stow will not overwrite real files, and a fresh install
 #    ships defaults for most of these. Move them aside rather than deleting:
 mkdir -p ~/config-backup
-for f in starship.toml kitty/kitty.conf hypr; do
+for f in starship.toml kitty/kitty.conf hypr noctalia/config.toml; do
     [ -e ~/.config/$f ] && [ ! -L ~/.config/$f ] && mv ~/.config/$f ~/config-backup/
 done
+# noctalia also owns a file outside ~/.config. Launching it once before
+# deploying creates a default one, which stow then refuses to overwrite.
+[ -e ~/.local/state/noctalia/settings.toml ] &&
+    mv ~/.local/state/noctalia/settings.toml ~/config-backup/
 
 # 5. Deploy, then verify nothing is left unlinked.
 make
@@ -93,7 +97,7 @@ rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
 
 **Shared** — `starship` `backgrounds` `environment` `scripts` `hypridle`
 
-**Laptop** — `hypr-modular` `kitty-modular`
+**Laptop** — `hypr-modular` `kitty-modular` `noctalia`
 
 **Desktop** — `hypr-classic` `kitty-classic` `waybar` `wofi` `dunst`
 `hyprpaper` `hyprlock` `hyprmocha` `swappy` `flameshot`
@@ -101,6 +105,48 @@ rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
 `scripts` holds `lock.sh`, which picks whichever locker the machine has, and
 `battery-monitor.sh`, which uses `notify-send` so it works with both dunst and
 noctalia. That is what lets `hypridle.conf` stay shared.
+
+## noctalia config
+
+noctalia keeps its settings in **two** files, and the second one wins:
+
+| file | written by | holds |
+| --- | --- | --- |
+| `~/.config/noctalia/config.toml` | you, by hand | bar layout, widgets, shell options |
+| `~/.local/state/noctalia/settings.toml` | the settings UI and `noctalia msg` | everything the UI can change — palette, lock screen layout, desktop widgets |
+
+Where both set the same key, `settings.toml` overrides `config.toml` silently.
+That is worth knowing before editing: a palette set in `config.toml` will simply
+never apply if `settings.toml` also names one. Check what actually resolved
+with `noctalia config export merged`, and validate a change with
+`noctalia config validate`.
+
+Set the palette and theme mode through the IPC rather than by editing a file,
+so the value lands in the file that wins:
+
+```bash
+noctalia msg color-scheme-get                       # what is active now
+noctalia msg color-scheme-set wallpaper m3-tonal-spot
+noctalia msg theme-mode-set dark
+```
+
+Both files are stowed, so the lock screen survives a rebuild. Two consequences:
+
+- **`settings.toml` is rewritten wholesale by noctalia**, so any comment added
+  to it is lost on the next UI change. Document it here instead.
+- Changing a setting in the UI shows up as a diff in this repo. That is the
+  point — review it and commit when you are happy with it.
+
+The package is stowed with `--no-folding`, because both directories also hold
+state noctalia writes itself (clipboard history, notification history, plugins,
+downloaded palettes). On a fresh machine, ordinary stow would symlink
+`~/.config` and `~/.local` themselves into the repo. `make noctalia` and
+`make restow` both pass the flag; a bare `stow noctalia` does not.
+
+The lock screen layout is per-connector (`eDP-1`, `DP-4`, `DP-5`), unlike
+Hyprland's monitor config, which matches on EDID. Widgets for a connector that
+is not attached are simply not drawn, so the docked and undocked layouts are
+maintained separately and need to be checked separately.
 
 ## Monitors
 

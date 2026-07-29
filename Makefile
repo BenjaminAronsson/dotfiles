@@ -45,16 +45,31 @@ LAPTOP  := hypr-modular kitty-modular
 # Desktop: monolithic Hyprland config plus the full hand-rolled stack.
 CLASSIC := hypr-classic kitty-classic waybar wofi dunst hyprpaper hyprlock hyprmocha swappy flameshot
 
+# Laptop, but stowed with --no-folding and therefore kept out of the lists
+# above. Both directories noctalia owns (~/.config/noctalia and
+# ~/.local/state/noctalia) also hold state it writes itself -- clipboard
+# history, notification history, plugins, downloaded palettes. On a machine
+# where those directories do not exist yet, plain stow would fold and symlink
+# the *directory*, and noctalia would then write all of that into this repo.
+# --no-folding creates real directories and links only the files listed here.
+NOFOLD  := noctalia
+
 # Everything, for unstow/restow.
-ALL := $(COMMON) $(LAPTOP) $(CLASSIC)
+ALL := $(COMMON) $(LAPTOP) $(CLASSIC) $(NOFOLD)
+
+# Single-package targets. NOFOLD packages get their own rule below, so they are
+# excluded here to avoid two recipes for the same target name.
+STOWABLE := $(COMMON) $(LAPTOP) $(CLASSIC)
 
 # Hostname -> profile. Add new machines here.
 ifeq ($(HOST),cachyos-dell)
 PROFILE := cachyos-dell
 PROFILE_PKGS := $(LAPTOP)
+PROFILE_NOFOLD := $(NOFOLD)
 else
 PROFILE := classic
 PROFILE_PKGS := $(CLASSIC)
+PROFILE_NOFOLD :=
 endif
 
 .PHONY: all cachyos-dell classic unstow restow list help \
@@ -65,6 +80,7 @@ all: $(PROFILE) ## Deploy the profile matching this machine
 
 cachyos-dell: ## Deploy the laptop profile (CachyOS + noctalia)
 	$(STOW) $(COMMON) $(LAPTOP)
+	$(STOW) --no-folding $(NOFOLD)
 
 classic: ## Deploy the desktop profile (waybar + wofi + dunst + Mocha)
 	$(STOW) $(COMMON) $(CLASSIC)
@@ -74,9 +90,13 @@ unstow: ## Remove all symlinks from ~
 
 restow: ## Re-link the current profile (use after adding or removing files)
 	$(STOW) --restow $(COMMON) $(PROFILE_PKGS)
+	@test -z "$(PROFILE_NOFOLD)" || $(STOW) --restow --no-folding $(PROFILE_NOFOLD)
 
-$(ALL): ## Stow a single package, e.g. make kitty
+$(STOWABLE): ## Stow a single package, e.g. make kitty
 	$(STOW) $@
+
+$(NOFOLD): ## Stow a single --no-folding package, e.g. make noctalia
+	$(STOW) --no-folding $@
 
 install-systemd: ## Install lid/sleep policy into /etc (needs sudo)
 	sudo install -Dm644 \
@@ -143,7 +163,7 @@ verify-sddm: ## Preview the greeter in a window, without logging out
 list: ## Show the detected machine and what it would deploy
 	@echo "hostname : $(HOST)"
 	@echo "profile  : $(PROFILE)"
-	@echo "packages : $(COMMON) $(PROFILE_PKGS)"
+	@echo "packages : $(COMMON) $(PROFILE_PKGS) $(PROFILE_NOFOLD)"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*##"}; {printf "  %-14s %s\n", $$1, $$2}'
