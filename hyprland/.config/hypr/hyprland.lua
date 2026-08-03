@@ -56,7 +56,7 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
+   hl.exec_cmd("waybar > " .. os.getenv("HOME") .. "/.cache/waybar.log 2>&1 & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
    hl.exec_cmd("wl-paste --watch cliphist store")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
