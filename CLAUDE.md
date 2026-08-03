@@ -79,10 +79,17 @@ Matched by `desc:` (make + model + serial), never by connector name — the
 connector depends on which dock port the cable lands in, and the office has two
 identical panels distinguished only by serial.
 
-`config/variables.lua` reads the EDID of every connected output and resolves
-`MONITOR1` (main), `MONITOR2` (right), `MONITOR3` (laptop panel) to whichever
-desk is detected. This happens at config *load*, so changing desk needs a
-`hyprctl reload`.
+Both profiles dock at the same two desks (home and office), so the EDID
+resolution logic lives once in `hypr-shared/.config/hypr/shared/deskresolve.lua`
+rather than forked into each profile — the same lesson `liddock.lua` already
+learned the hard way. `deskresolve.resolve(laptop_desc)` reads the EDID of
+every connected output, matches known serials, and returns `MONITOR1` (main),
+`MONITOR2` (right) and `LOCATION` (`"home"` / `"office"` / `"undocked"`) to
+whichever desk is detected; each profile supplies its own laptop panel `desc:`
+as the undocked fallback and sets `MONITOR3` to it directly.
+
+`hypr-modular/config/variables.lua` and `hypr-classic/hyprland.lua` both call
+this at config *load*, so changing desk needs a `hyprctl reload`.
 
 ## Lid / dock handling is shared
 
@@ -100,8 +107,12 @@ Each profile passes only its own details:
 
 | | `hypr-modular` (laptop) | `hypr-classic` (desktop) |
 |---|---|---|
-| `laptop_output` | `MONITOR3` (a `desc:` string) | `"eDP-1"` (connector name) |
+| `laptop_output` | `MONITOR3` (a `desc:` string) | `MONITOR3` (a `desc:` string) |
 | `after_change` | none — noctalia re-applies its own wallpaper | `ensure_wallpaper` for hyprpaper |
+
+Both now key `laptop_output` on `desc:` rather than a connector name, so the
+rule `liddock` re-applies on lid open updates the same rule the profile's own
+monitor section declared instead of shadowing it with a connector-keyed one.
 
 **Do not fork this file back into the profiles.** It was two hand-maintained
 copies until 2026-07-27, which is exactly how a `position = "auto"` bug in
