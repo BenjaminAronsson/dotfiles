@@ -21,19 +21,43 @@
 ------------------
 
 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
--- Office layout: laptop | Dell H3WW5V3 | Dell 1G3X5V3, left to right
--- Identified by desc: (make+model+serial) instead of port, since the two
--- identical Dells swap DP-5/DP-6 depending on which port they're plugged into.
+-- This laptop docks at the same two desks as the cachyos-dell profile, so
+-- desk resolution is shared -- see hypr-shared/shared/deskresolve.lua. Every
+-- screen from both desks is listed below; rules for monitors that are not
+-- plugged in are simply ignored, so one file covers home, office and
+-- undocked with no editing.
+--
+--   MONITOR1  main screen, centre
+--   MONITOR2  secondary, right
+--   MONITOR3  laptop panel, left
+--
+-- Monitors are matched by "desc:" (make+model+serial) instead of port, since
+-- the two identical office Dells swap DP-5/DP-6 depending on which port
+-- they're plugged into. List what's attached with:
+--   hyprctl monitors all | grep -E '^Monitor|description:'
+--
 -- Where the laptop panel sits. Also used by enable_edp() further down, which
 -- re-applies this rule on every lid open. Both must agree: an "auto" position
 -- there means "wherever there is free space", which is always to the *right* of
 -- the externals, and silently relocates the physically-left panel.
 local LAPTOP_POSITION = "0x0"
+local LAPTOP = "desc:BOE 0x0CD9"
+local deskresolve = require("shared.deskresolve")
 
-hl.monitor({ output = "eDP-1", mode = "preferred",    position = LAPTOP_POSITION, scale = 1 })
-hl.monitor({ output = "desc:Dell Inc. DELL P2422HE H3WW5V3", mode = "1920x1080@60", position = "1920x0", scale = 1 })
-hl.monitor({ output = "desc:Dell Inc. DELL P2422HE 1G3X5V3", mode = "1920x1080@60", position = "3840x0", scale = 1 })
+local MONITOR1, MONITOR2, LOCATION = deskresolve.resolve(LAPTOP)
+local MONITOR3 = LAPTOP
 
+hl.monitor({ output = MONITOR3, mode = "preferred", position = LAPTOP_POSITION, scale = 1 })
+
+-- Home desk
+hl.monitor({ output = deskresolve.HOME_MAIN,    mode = "preferred",    position = "1920x0", scale = 1 })
+hl.monitor({ output = deskresolve.HOME_RIGHT,   mode = "preferred",    position = "3840x0", scale = 1 })
+
+-- Office desk. Two identical P2422HE panels, told apart by serial.
+hl.monitor({ output = deskresolve.OFFICE_MAIN,  mode = "1920x1080@60", position = "1920x0", scale = 1 })
+hl.monitor({ output = deskresolve.OFFICE_RIGHT, mode = "1920x1080@60", position = "3840x0", scale = 1 })
+
+-- Catch-all for anything unknown: a meeting room projector, a hotel TV.
 hl.monitor({
     output   = "",
     mode     = "preferred",
@@ -67,7 +91,12 @@ hl.on("hyprland.start", function ()
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
    hl.exec_cmd("hyprctl dispatch exec '[workspace special:term silent] kitty --single-instance'")
-   hl.exec_cmd("sh -c 'sleep 1 && notify-send -t 3000 -u low \"Hyprland\" \"Ready\"'")
+
+   -- Report which desk we resolved to, so a misdetected dock is obvious
+   -- rather than showing up later as workspaces on the wrong screen.
+   hl.exec_cmd(string.format(
+       "sh -c 'sleep 1 && notify-send -t 3000 -u low \"Hyprland\" \"Ready (%s)\"'",
+       LOCATION or "unknown"))
 end)
 
 
@@ -358,9 +387,10 @@ local function ensure_wallpaper()
 end
 
 require("shared.liddock").setup({
-    -- This profile declares the panel by connector name in the MONITORS section
-    -- above, so the rule the module re-applies must use the same key.
-    laptop_output   = "eDP-1",
+    -- Matched by "desc:" so this updates the same rule the MONITORS section
+    -- above declared, rather than adding a connector-keyed one that would
+    -- outrank it.
+    laptop_output   = MONITOR3,
     laptop_position = LAPTOP_POSITION,
     after_change    = ensure_wallpaper,
 })
@@ -384,6 +414,29 @@ hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { l
 
 -- See https://wiki.hypr.land/Configuring/Basics/Window-Rules/
 -- and https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
+
+-- Each monitor owns a block of workspaces, so SUPER+<number> always lands on
+-- a predictable screen:
+--
+--   1 2 3 4   MONITOR1  main, centre
+--   5 6 7     MONITOR2  right
+--
+-- Undocked, MONITOR1/2 both resolve to the laptop panel (see deskresolve.lua),
+-- so every rule below lands on the one screen that exists.
+--
+-- No block for MONITOR3 (the laptop panel): this profile normally docks with
+-- the lid closed, so the panel is never actually visible. A persistent
+-- workspace pinned there would just get swept onto MONITOR1 by liddock the
+-- moment the lid closes, cluttering it with phantom workspaces. 8/9/10 stay
+-- reachable via SUPER+8/9/0, they just aren't force-created or pinned.
+hl.workspace_rule({ workspace = "1", monitor = MONITOR1, default = true, persistent = true })
+hl.workspace_rule({ workspace = "2", monitor = MONITOR1, persistent = true })
+hl.workspace_rule({ workspace = "3", monitor = MONITOR1, persistent = true })
+hl.workspace_rule({ workspace = "4", monitor = MONITOR1, persistent = true })
+
+hl.workspace_rule({ workspace = "5", monitor = MONITOR2, default = true, persistent = true })
+hl.workspace_rule({ workspace = "6", monitor = MONITOR2, persistent = true })
+hl.workspace_rule({ workspace = "7", monitor = MONITOR2, persistent = true })
 
 -- Example window rules that are useful
 
