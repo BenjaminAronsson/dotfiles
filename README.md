@@ -177,6 +177,28 @@ make uninstall-systemd   # remove it again
 sudo systemctl restart systemd-logind   # apply (ends the graphical session)
 ```
 
+### Waking with the Bluetooth keyboard
+
+`udev/` is the other half of making sleep behave, and is also root-owned:
+
+```bash
+make install-udev        # arm the Bluetooth radio as a wake source (needs sudo)
+make verify-udev         # is it armed, and what woke the machine last time
+make uninstall-udev      # remove the rule again
+```
+
+Without this, waking the laptop with the lid shut by pressing a key on the
+Keychron does not work, and after waking it another way the keyboard stays dead
+for around 45 seconds. Both come from the kernel leaving `power/wakeup` on the
+Intel controller set to `disabled`: the radio is never armed, so it loses its
+link state across s2idle, and the keyboard goes on talking over a link the host
+has forgotten (`ACL packet for unknown connection handle`) until the supervision
+timeout expires. `udev/rules.d/80-bluetooth-wake.rules` has the long version.
+
+Note that the fix that turns up first when searching — disconnecting HID devices
+in a `systemd-sleep` hook — makes reconnect quick but permanently prevents
+waking by keyboard, since it leaves no link to wake over.
+
 Likewise `sddm/`, which themes the login screen:
 
 ```bash

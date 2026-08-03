@@ -160,9 +160,11 @@ verify-udev: ## Show whether the Bluetooth radio may wake the machine
 	[ -n "$$found" ] || echo "controller $(BT_VENDOR):$(BT_PRODUCT) not found"
 	@echo
 	@echo "Wake permission per paired device (BlueZ):"
+	@# Devices that are not currently connected report no WakeAllowed at all,
+	@# so fall back to "unknown" rather than printing an empty column.
 	@bluetoothctl devices Paired | while read -r _ mac name; do \
-		printf '  %-24s %s\n' "$$name" \
-			"$$(bluetoothctl info $$mac | sed -n 's/.*WakeAllowed: /WakeAllowed=/p')"; \
+		w=$$(bluetoothctl info $$mac | sed -n 's/.*WakeAllowed: //p'); \
+		printf '  %-30s %s\n' "$$name" "WakeAllowed=$${w:-unknown (not connected)}"; \
 	done
 	@echo
 	@echo "What woke the machine last time (0x0 means it was not Bluetooth):"
