@@ -238,6 +238,16 @@ hl.animation({ leaf = "zoomFactor",    enabled = true,  speed = 7,    bezier = "
 --     rounding    = 0,
 -- })
 
+-- wofi (mainMod+Space launcher) intermittently fails its wlr-layer-shell
+-- registry check and falls back to a normal tiled window; float it so that
+-- fallback is still a visible, usable popup instead of an easy-to-miss tile.
+-- See linux-bugs/bugs/BUG-011-wofi-freeze-login-window/README.md
+hl.window_rule({
+    name  = "wofi-float",
+    match = { class = "^(wofi)$" },
+    float = true,
+})
+
 -- See https://wiki.hypr.land/Configuring/Layouts/Dwindle-Layout/ for more
 hl.config({
     dwindle = {
@@ -431,8 +441,11 @@ require("shared.liddock").setup({
 -- Screenshots (grim + slurp + swappy)
 -- Print: select area → annotate (draw, save with S, copy with Ctrl+C)
 -- Super+Print: full screen → annotate
+-- F8: same as Print — this Logi keyboard's Fn+F8 emits plain F8, not the Print keysym
 hl.bind("Print",              hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | swappy -f -'"))
 hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
+hl.bind("F8",                 hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | swappy -f -'"))
+hl.bind(mainMod .. " + F8",   hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
 
 -- Clipboard history (cliphist)
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("sh -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
@@ -539,6 +552,12 @@ hl.window_rule({
     name  = "rider-workspace",
     match = { class = "jetbrains-rider" },
     workspace = "4 silent",
+})
+
+hl.window_rule({
+    name  = "spotify-workspace",
+    match = { class = "Spotify" },
+    workspace = "8 silent",
 })
 
 -- Hyprland-run windowrule
