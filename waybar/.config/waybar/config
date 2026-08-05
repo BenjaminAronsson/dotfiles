@@ -12,7 +12,8 @@
         "format": "{id}",
         "on-click": "activate",
         "sort-by-number": true,
-        "active-only": false
+        "active-only": false,
+        "ignore-workspaces": ["^9$", "^10$"]
     },
 
     "clock": {

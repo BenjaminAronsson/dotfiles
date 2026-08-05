@@ -27,8 +27,16 @@ hl.workspace_rule({ workspace = "7", monitor = MONITOR2, persistent = true })
 
 -- Laptop panel, left
 hl.workspace_rule({ workspace = "8", monitor = MONITOR3, default = true, persistent = true })
-hl.workspace_rule({ workspace = "9", monitor = MONITOR3, persistent = true })
-hl.workspace_rule({ workspace = "10", monitor = MONITOR3, persistent = true })
+
+-- 9 and 10 are deliberately unbound (no "monitor" field): a workspace rule's
+-- "monitor" is a hard binding that Hyprland reasserts every time the
+-- workspace is focused by id, not just an initial default. Binding them to
+-- MONITOR3 (the laptop panel) meant SUPER+9/0 always snapped back to the
+-- panel even while docked with the lid closed and its workspaces swept
+-- elsewhere by liddock -- the panel is invisible then, so this looked like
+-- the workspace was "hiding". Left unbound, they land on whichever monitor
+-- is currently focused instead, and simply aren't force-created or pinned
+-- until something is put there. Matches how hypr-classic treats its own 9/10.
 
 -- Named scratch workspace for games; not persistent, appears when used.
 hl.workspace_rule({ workspace = "name:gaming", monitor = PRIMARY_MONITOR })
