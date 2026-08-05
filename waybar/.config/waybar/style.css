@@ -119,6 +119,11 @@ button:hover {
     border-bottom: 2px solid @red;
 }
 
+#tray {
+    color: @teal;
+    border-bottom: 2px solid @teal;
+}
+
 /* If workspaces is the leftmost module, omit left margin */
 .modules-left>widget:first-child>#workspaces {
     margin-left: 0;
