@@ -472,16 +472,36 @@ hl.window_rule({
 -- })
 -- overlayLayerRule:set_enabled(false)
 
+-- PWA class is "msedge-_<extension-id>-Default", not Chrome's "crx__" prefix,
+-- since this profile runs Edge as the PWA host (see `browser` above).
 hl.window_rule({
     name  = "teams-pwa-workspace",
-    match = { class = "crx__ompifgpmddkgmclendfeacglnodjjndh" },
-    workspace = "2 silent",
+    match = { class = "msedge-_ompifgpmddkgmclendfeacglnodjjndh-Default" },
+    workspace = "5 silent",
 })
 
 hl.window_rule({
     name  = "outlook-pwa-workspace",
-    match = { class = "crx__faolnafnngnfdaknnbpnkhgohbobgegn" },
-    workspace = "2 silent",
+    match = { class = "msedge-_faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
+    workspace = "5 silent",
+})
+
+hl.window_rule({
+    name  = "claude-workspace",
+    match = { class = "com.anthropic.Claude" },
+    workspace = "6 silent",
+})
+
+hl.window_rule({
+    name  = "browser-workspace",
+    match = { class = "^(microsoft-edge|google-chrome|Chromium)$" },
+    workspace = "3 silent",
+})
+
+hl.window_rule({
+    name  = "rider-workspace",
+    match = { class = "jetbrains-rider" },
+    workspace = "4 silent",
 })
 
 -- Hyprland-run windowrule
