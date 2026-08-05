@@ -88,7 +88,11 @@ Both profiles need: `stow` `hyprland` `kitty` `starship` `hypridle`
 
 **Desktop** additionally: `waybar` `wofi` `dunst` `hyprpaper` `hyprlock`
 `swayosd` `cliphist` `grim` `slurp` `swappy` `wlogout` `playerctl` `nautilus`
-`ttf-cascadia-code-nerd`
+`ttf-cascadia-code-nerd` `network-manager-gnome` `blueman`
+
+The desktop is always Ubuntu, so these are apt package names — `blueman`
+matches its Arch name too, but `network-manager-gnome` is `nm-applet`'s
+Ubuntu package (the Arch equivalent is `network-manager-applet`).
 
 A missing font fails silently — the terminal just falls back to a default
 rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
