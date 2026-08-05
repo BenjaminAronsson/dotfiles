@@ -73,6 +73,9 @@ hl.monitor({
 -- Set programs that you use
 local terminal    = "kitty --single-instance"
 local fileManager = "nautilus"
+local editor      = "code"
+local calculator  = "gnome-calculator"
+local browser     = "microsoft-edge"
 local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scripts/launcher.sh"
 
 
@@ -317,14 +320,19 @@ hl.device({
 
 local mainMod = "SUPER" -- Sets "Windows" key as main modifier
 
--- Example binds, see https://wiki.hypr.land/Configuring/Basics/Binds/ for more
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
+hl.bind("CONTROL + SHIFT + Escape", hl.dsp.exec_cmd(terminal .. " -e btop"))
 local closeWindowBind = hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 -- closeWindowBind:set_enabled(false)
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
-hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(editor))
+hl.bind(mainMod .. " + C", hl.dsp.exec_cmd(calculator))
+hl.bind(mainMod .. " + W", hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd(menu))
-hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
+hl.bind(mainMod .. " + ALT + Space", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + D", hl.dsp.window.fullscreen({ mode = 1 }))
+hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen())
+hl.bind(mainMod .. " + P", hl.dsp.exec_cmd("hyprpicker -a"))
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 
 -- Move focus with mainMod + arrow keys
@@ -332,6 +340,20 @@ hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+hl.bind("ALT + Tab",           hl.dsp.window.cycle_next())
+
+-- Move active window around workspaces & monitors
+hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.move({ direction = "r" }))
+hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.move({ direction = "l" }))
+hl.bind(mainMod .. " + SHIFT + up",    hl.dsp.window.move({ direction = "u" }))
+hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "d" }))
+hl.bind(mainMod .. " + ALT + 1", hl.dsp.window.move({ monitor = MONITOR1 }))
+hl.bind(mainMod .. " + ALT + 2", hl.dsp.window.move({ monitor = MONITOR2 }))
+hl.bind(mainMod .. " + ALT + 3", hl.dsp.window.move({ monitor = MONITOR3 }))
+hl.bind(mainMod .. " + SHIFT + mouse_up",        hl.dsp.window.move({ monitor = "+1" }))
+hl.bind(mainMod .. " + SHIFT + mouse_down",      hl.dsp.window.move({ monitor = "-1" }))
+hl.bind(mainMod .. " + CONTROL + SHIFT + right", hl.dsp.window.move({ workspace = "r+1" }))
+hl.bind(mainMod .. " + CONTROL + SHIFT + left",  hl.dsp.window.move({ workspace = "r-1" }))
 
 -- Switch workspaces with mainMod + [0-9]
 -- Move active window to a workspace with mainMod + SHIFT + [0-9]
@@ -345,9 +367,14 @@ end
 hl.bind(mainMod .. " + S",         hl.dsp.workspace.toggle_special("magic"))
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
 
--- Scroll through existing workspaces with mainMod + scroll
-hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+-- Move to adjacent workspaces on the current monitor
+hl.bind(mainMod .. " + CONTROL + right", hl.dsp.focus({ workspace = "m+1" }))
+hl.bind(mainMod .. " + CONTROL + left",  hl.dsp.focus({ workspace = "m-1" }))
+hl.bind(mainMod .. " + CONTROL + down",  hl.dsp.focus({ workspace = "emptym" }))
+
+-- Scroll through workspaces on the current monitor with mainMod + scroll
+hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "m+1" }))
+hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "m-1" }))
 
 -- Move/resize windows with mainMod + LMB/RMB and dragging
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
@@ -410,6 +437,9 @@ hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
 -- Clipboard history (cliphist)
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("sh -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
 
+-- Notifications (dunst)
+hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("dunstctl history-pop"))
+
 -- Power/logout menu (wlogout)
 hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { locked = true })
 
@@ -425,7 +455,7 @@ hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { l
 -- a predictable screen:
 --
 --   1 2 3 4   MONITOR1  main, centre
---   5 6 7     MONITOR2  right
+--   5 6 7 8   MONITOR2  right
 --
 -- Undocked, MONITOR1/2 both resolve to the laptop panel (see deskresolve.lua),
 -- so every rule below lands on the one screen that exists.
@@ -433,8 +463,8 @@ hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { l
 -- No block for MONITOR3 (the laptop panel): this profile normally docks with
 -- the lid closed, so the panel is never actually visible. A persistent
 -- workspace pinned there would just get swept onto MONITOR1 by liddock the
--- moment the lid closes, cluttering it with phantom workspaces. 8/9/10 stay
--- reachable via SUPER+8/9/0, they just aren't force-created or pinned.
+-- moment the lid closes, cluttering it with phantom workspaces. 9/10 stay
+-- reachable via SUPER+9/0, they just aren't force-created or pinned.
 hl.workspace_rule({ workspace = "1", monitor = MONITOR1, default = true, persistent = true })
 hl.workspace_rule({ workspace = "2", monitor = MONITOR1, persistent = true })
 hl.workspace_rule({ workspace = "3", monitor = MONITOR1, persistent = true })
@@ -443,6 +473,7 @@ hl.workspace_rule({ workspace = "4", monitor = MONITOR1, persistent = true })
 hl.workspace_rule({ workspace = "5", monitor = MONITOR2, default = true, persistent = true })
 hl.workspace_rule({ workspace = "6", monitor = MONITOR2, persistent = true })
 hl.workspace_rule({ workspace = "7", monitor = MONITOR2, persistent = true })
+hl.workspace_rule({ workspace = "8", monitor = MONITOR2, persistent = true })
 
 -- Example window rules that are useful
 
