@@ -78,4 +78,43 @@ function M.resolve(laptop_desc)
     return monitor1, monitor2, location
 end
 
+-- Re-resolve the desk once the dock has settled, if resolve() looked undocked
+-- at config load. resolve() reads EDID once, at load time -- if the dock's DP
+-- links come up after Hyprland has started, no serial matches, MONITOR1..3 all
+-- fall back to the laptop panel, and every workspace rule points there. With
+-- the lid closed, liddock then sweeps everything onto whichever external it
+-- finds first, which looks like "my workspaces are all on one screen". A
+-- reload after the outputs are awake re-resolves the roles correctly.
+--
+-- Checks twice (4s, then 8s) instead of once -- a single 4s check missed slow
+-- USB-C/dock DP link negotiation often enough to reappear as this same bug.
+--
+-- Call from each profile's "hyprland.start" autostart handler, passing the
+-- LOCATION resolve() already returned at load.
+--
+-- Two guards, both load-bearing:
+--   * only when resolve() returned "undocked" -- a correctly detected desk is
+--     never reloaded out from under it;
+--   * a marker in the instance's runtime dir, because an unrecognised screen
+--     (hotel TV, meeting room projector) still resolves to "undocked" after the
+--     reload and would otherwise reload forever. This handler fires again on
+--     that reload too -- same reason hypridle's autostart needs a pgrep guard.
+--     The marker path contains $HYPRLAND_INSTANCE_SIGNATURE, so it is unique
+--     per compositor start and survives reloads within one session.
+function M.schedule_reload_if_undocked(location)
+    if location ~= "undocked" then return end
+    hl.exec_cmd([[sh -c '
+        marker="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.desk-reloaded"
+        [ -e "$marker" ] && exit 0
+        for attempt in 1 2; do
+            sleep 4
+            if [ "$(hyprctl monitors | grep -c "^Monitor")" -gt 1 ]; then
+                touch "$marker"
+                hyprctl reload
+                exit 0
+            fi
+        done
+    ' &]])
+end
+
 return M

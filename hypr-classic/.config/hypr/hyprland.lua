@@ -92,6 +92,12 @@ hl.on("hyprland.start", function ()
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
    hl.exec_cmd("hyprctl dispatch exec '[workspace special:term silent] kitty --single-instance'")
 
+   -- Re-resolve the desk once the dock has settled -- see the doc comment on
+   -- schedule_reload_if_undocked() in shared/deskresolve.lua for why this is
+   -- needed and how the reload-loop guards work. Shared with hypr-modular so
+   -- the fix doesn't end up hand-maintained in two places.
+   deskresolve.schedule_reload_if_undocked(LOCATION)
+
    -- Report which desk we resolved to, so a misdetected dock is obvious
    -- rather than showing up later as workspaces on the wrong screen.
    hl.exec_cmd(string.format(
