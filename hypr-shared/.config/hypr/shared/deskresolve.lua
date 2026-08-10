@@ -86,8 +86,11 @@ end
 -- finds first, which looks like "my workspaces are all on one screen". A
 -- reload after the outputs are awake re-resolves the roles correctly.
 --
--- Checks twice (4s, then 8s) instead of once -- a single 4s check missed slow
--- USB-C/dock DP link negotiation often enough to reappear as this same bug.
+-- Checks four times (4s, 8s, 12s, 16s) instead of once or twice -- a single
+-- 4s check missed slow USB-C/dock DP link negotiation often enough to
+-- reappear as this same bug, and even two checks (8s total) wasn't always
+-- enough on a fresh boot on BenjaminA-Linux, whose office dock took longer
+-- than 8s to bring DP-5/DP-6 up.
 --
 -- Call from each profile's "hyprland.start" autostart handler, passing the
 -- LOCATION resolve() already returned at load.
@@ -106,7 +109,7 @@ function M.schedule_reload_if_undocked(location)
     hl.exec_cmd([[sh -c '
         marker="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.desk-reloaded"
         [ -e "$marker" ] && exit 0
-        for attempt in 1 2; do
+        for attempt in 1 2 3 4; do
             sleep 4
             if [ "$(hyprctl monitors | grep -c "^Monitor")" -gt 1 ]; then
                 touch "$marker"

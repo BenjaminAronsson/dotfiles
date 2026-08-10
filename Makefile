@@ -78,6 +78,12 @@ ifeq ($(HOST),cachyos-dell)
 PROFILE := cachyos-dell
 PROFILE_PKGS := $(LAPTOP)
 PROFILE_NOFOLD := $(NOFOLD)
+else ifeq ($(HOST),BenjaminA-Linux)
+# Dell Pro Max 16 laptop. Docks at the same two desks as cachyos-dell, but
+# runs the hand-rolled waybar/wofi/dunst stack, not noctalia.
+PROFILE := classic
+PROFILE_PKGS := $(CLASSIC)
+PROFILE_NOFOLD :=
 else
 PROFILE := classic
 PROFILE_PKGS := $(CLASSIC)
