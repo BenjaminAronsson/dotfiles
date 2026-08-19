@@ -49,7 +49,7 @@ SDDM_THEME := /usr/share/sddm/themes/sddm-astronaut-theme
 # Shared by every machine. hypr-shared carries the Hyprland Lua that both
 # profiles require() -- currently the lid/dock handling, which is identical on
 # both and used to be maintained as two copies that drifted.
-COMMON  := starship backgrounds environment scripts hypridle hypr-shared
+COMMON  := starship backgrounds environment scripts hypridle hypr-shared pipewire
 
 # Laptop: modular Hyprland config, noctalia does the rest.
 LAPTOP  := hypr-modular kitty-modular
