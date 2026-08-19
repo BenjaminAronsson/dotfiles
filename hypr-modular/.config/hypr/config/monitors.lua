@@ -58,6 +58,15 @@ hl.monitor({
     scale = 1,
 })
 
+-- Two unrecognised externals (LOCATION == "generic"): position them like the
+-- known desks, MONITOR1 left of MONITOR2, instead of leaving both to
+-- Hyprland's own "auto" placement, which has no notion of which one should be
+-- primary.
+if LOCATION == "generic" and MONITOR1 ~= MONITOR2 then
+    hl.monitor({ output = MONITOR1, mode = "preferred", position = "1920x0", scale = 1 })
+    hl.monitor({ output = MONITOR2, mode = "preferred", position = "3840x0", scale = 1 })
+end
+
 -- Undocking
 -- ---------
 -- Nothing here changes when you unplug. Hyprland drops the rules for missing

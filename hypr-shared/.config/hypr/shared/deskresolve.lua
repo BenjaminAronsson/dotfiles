@@ -40,11 +40,66 @@ local function connected_edid()
     return (ok and blob) or ""
 end
 
+-- Hot-desking fallback for any desk that isn't home or office (open-landscape
+-- seating, meeting rooms) -- there is no known EDID serial to match, so the
+-- two externals are told apart by DRM connector name instead. That name
+-- depends on which dock port each cable happens to land on, not on physical
+-- left/right position, so which one becomes MONITOR1 vs MONITOR2 is
+-- essentially arbitrary from one desk to the next. M.toggle_generic_swap()
+-- (bind it to a key) flips the two without editing config.
+local GENERIC_SWAP_STATE_DIR = os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")
+local GENERIC_SWAP_FILE = GENERIC_SWAP_STATE_DIR .. "/hypr-generic-desk-swap"
+
+local function generic_swap_wanted()
+    local f = io.open(GENERIC_SWAP_FILE, "r")
+    if f then f:close(); return true end
+    return false
+end
+
+function M.toggle_generic_swap()
+    if generic_swap_wanted() then
+        os.remove(GENERIC_SWAP_FILE)
+    else
+        os.execute("mkdir -p '" .. GENERIC_SWAP_STATE_DIR .. "'")
+        local f = io.open(GENERIC_SWAP_FILE, "w")
+        if f then f:close() end
+    end
+    os.execute("hyprctl reload")
+end
+
+-- Every DRM connector currently reporting "connected", minus the laptop's
+-- built-in panel (eDP-*), sorted by connector name for an order that is at
+-- least stable across reloads even though it isn't tied to physical position.
+local function connected_external_connectors()
+    local ok, blob = pcall(function()
+        local p = io.popen([[for f in /sys/class/drm/*/status; do
+            d=$(basename "$(dirname "$f")")
+            [ "$(cat "$f" 2>/dev/null)" = connected ] && echo "$d"
+        done 2>/dev/null]])
+        if not p then return "" end
+        local s = p:read("*a") or ""
+        p:close()
+        return s
+    end)
+
+    local list = {}
+    if ok then
+        for line in blob:gmatch("[^\r\n]+") do
+            local connector = line:match("^card%d+%-(.+)$") or line
+            if not connector:match("^eDP") then
+                table.insert(list, connector)
+            end
+        end
+    end
+    table.sort(list)
+    return list
+end
+
 -- laptop_desc: this profile's own laptop panel identifier, used as the
--- fallback for MONITOR1/2 when neither desk is attached (undocked).
+-- fallback for MONITOR1/2 when nothing else is attached (undocked).
 --
 -- Returns MONITOR1 (main, centre), MONITOR2 (secondary, right), LOCATION
--- ("home" | "office" | "undocked").
+-- ("home" | "office" | "generic" | "undocked").
 function M.resolve(laptop_desc)
     local edid = connected_edid()
 
@@ -61,21 +116,37 @@ function M.resolve(laptop_desc)
         return fallback
     end
 
-    local monitor1 = first_attached({
-        { serial = "1W6YK03", desc = HOME_MAIN   },
-        { serial = "H3WW5V3", desc = OFFICE_MAIN },
-    }, laptop_desc)
+    if attached("1W6YK03") or attached("H3WW5V3") then
+        local monitor1 = first_attached({
+            { serial = "1W6YK03", desc = HOME_MAIN   },
+            { serial = "H3WW5V3", desc = OFFICE_MAIN },
+        }, laptop_desc)
 
-    local monitor2 = first_attached({
-        { serial = "G4LMTJ009579", desc = HOME_RIGHT   },
-        { serial = "1G3X5V3",      desc = OFFICE_RIGHT },
-    }, laptop_desc)
+        local monitor2 = first_attached({
+            { serial = "G4LMTJ009579", desc = HOME_RIGHT   },
+            { serial = "1G3X5V3",      desc = OFFICE_RIGHT },
+        }, laptop_desc)
 
-    local location = attached("1W6YK03") and "home"
-                   or attached("H3WW5V3") and "office"
-                   or "undocked"
+        local location = attached("1W6YK03") and "home" or "office"
+        return monitor1, monitor2, location
+    end
 
-    return monitor1, monitor2, location
+    -- Neither known desk: fall back generically instead of collapsing both
+    -- MONITOR1 and MONITOR2 onto the laptop panel, which is what happened
+    -- here before and is why an unrecognised desk showed everything on one
+    -- screen even with two externals plugged in.
+    local externals = connected_external_connectors()
+    if #externals >= 2 then
+        local first, second = externals[2], externals[1]
+        if generic_swap_wanted() then
+            first, second = second, first
+        end
+        return first, second, "generic"
+    elseif #externals == 1 then
+        return externals[1], laptop_desc, "generic"
+    end
+
+    return laptop_desc, laptop_desc, "undocked"
 end
 
 -- Re-resolve the desk once the dock has settled, if resolve() looked undocked
