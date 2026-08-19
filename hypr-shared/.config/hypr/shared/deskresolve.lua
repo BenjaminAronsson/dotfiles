@@ -157,38 +157,54 @@ end
 -- finds first, which looks like "my workspaces are all on one screen". A
 -- reload after the outputs are awake re-resolves the roles correctly.
 --
--- Checks four times (4s, 8s, 12s, 16s) instead of once or twice -- a single
--- 4s check missed slow USB-C/dock DP link negotiation often enough to
--- reappear as this same bug, and even two checks (8s total) wasn't always
--- enough on a fresh boot on BenjaminA-Linux, whose office dock took longer
--- than 8s to bring DP-5/DP-6 up.
+-- Reacts to the real monitor.added event instead of polling on a fixed
+-- schedule. A timed retry loop (2 checks/8s, then widened to 4 checks/16s
+-- after it still missed the office dock) kept losing the race against this
+-- dock's variable-length DP link training and reappeared as this exact bug
+-- both times -- any fixed budget is eventually too short for some boot.
+-- Firing off the actual "a monitor just showed up" event has no such budget
+-- to run out: it doesn't matter whether the dock takes 5s or 50s.
 --
 -- Call from each profile's "hyprland.start" autostart handler, passing the
--- LOCATION resolve() already returned at load.
+-- LOCATION resolve() already returned at load. hyprland.start fires on every
+-- config reload, not just compositor boot (see the hypridle pgrep guard
+-- above for the same reason), so this can be called many times per session.
 --
 -- Two guards, both load-bearing:
 --   * only when resolve() returned "undocked" -- a correctly detected desk is
 --     never reloaded out from under it;
 --   * a marker in the instance's runtime dir, because an unrecognised screen
---     (hotel TV, meeting room projector) still resolves to "undocked" after the
---     reload and would otherwise reload forever. This handler fires again on
---     that reload too -- same reason hypridle's autostart needs a pgrep guard.
---     The marker path contains $HYPRLAND_INSTANCE_SIGNATURE, so it is unique
---     per compositor start and survives reloads within one session.
+--     (hotel TV, meeting room projector) still resolves to "undocked" after
+--     the reload and would otherwise register a fresh listener and reload
+--     forever. The marker path contains $HYPRLAND_INSTANCE_SIGNATURE, so it
+--     is unique per compositor start and survives reloads within one session
+--     (a plain Lua flag would not -- reload re-executes this whole module).
 function M.schedule_reload_if_undocked(location)
     if location ~= "undocked" then return end
-    hl.exec_cmd([[sh -c '
-        marker="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.desk-reloaded"
-        [ -e "$marker" ] && exit 0
-        for attempt in 1 2 3 4; do
-            sleep 4
-            if [ "$(hyprctl monitors | grep -c "^Monitor")" -gt 1 ]; then
-                touch "$marker"
-                hyprctl reload
-                exit 0
-            fi
-        done
-    ' &]])
+
+    local marker = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/hypr/" ..
+        (os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "") .. "/.desk-reloaded"
+
+    local function already_reloaded()
+        local f = io.open(marker, "r")
+        if f then f:close(); return true end
+        return false
+    end
+
+    if already_reloaded() then return end
+
+    hl.on("monitor.added", function()
+        if already_reloaded() then return end
+        -- Give the new output a moment to finish link training and expose a
+        -- readable EDID before re-resolving -- same settle delay liddock.lua
+        -- uses after monitor events.
+        hl.timer(function()
+            if already_reloaded() then return end
+            local f = io.open(marker, "w")
+            if f then f:close() end
+            os.execute("hyprctl reload")
+        end, { timeout = 1000, type = "oneshot" })
+    end)
 end
 
 return M
