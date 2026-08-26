@@ -84,12 +84,20 @@ resolution logic lives once in `hypr-shared/.config/hypr/shared/deskresolve.lua`
 rather than forked into each profile — the same lesson `liddock.lua` already
 learned the hard way. `deskresolve.resolve(laptop_desc)` reads the EDID of
 every connected output, matches known serials, and returns `MONITOR1` (main),
-`MONITOR2` (right) and `LOCATION` (`"home"` / `"office"` / `"undocked"`) to
-whichever desk is detected; each profile supplies its own laptop panel `desc:`
-as the undocked fallback and sets `MONITOR3` to it directly.
+`MONITOR2` (right), `LOCATION` (`"home"` / `"office"` / `"generic"` /
+`"undocked"`) and `COMPLETE` (false if either monitor slot fell back to the
+laptop panel — including a *partially* settled dock, not just a fully
+undocked one) for whichever desk is detected; each profile supplies its own
+laptop panel `desc:` as the undocked fallback and sets `MONITOR3` to it
+directly.
 
 `hypr-modular/config/variables.lua` and `hypr-classic/hyprland.lua` both call
-this at config *load*, so changing desk needs a `hyprctl reload`.
+this at config *load*, so changing desk needs a `hyprctl reload` — each
+profile's `hyprland.start` autostart handler passes `COMPLETE` to
+`deskresolve.schedule_reload_if_incomplete()`, which re-resolves once the
+dock's DP links finish training (event-driven on `monitor.added`, not a
+fixed-delay retry — see that function's doc comment for why the retry-loop
+approach kept losing this race).
 
 ## Lid / dock handling is shared
 

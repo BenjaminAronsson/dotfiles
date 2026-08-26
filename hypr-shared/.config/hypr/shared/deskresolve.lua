@@ -99,7 +99,13 @@ end
 -- fallback for MONITOR1/2 when nothing else is attached (undocked).
 --
 -- Returns MONITOR1 (main, centre), MONITOR2 (secondary, right), LOCATION
--- ("home" | "office" | "generic" | "undocked").
+-- ("home" | "office" | "generic" | "undocked"), and COMPLETE -- false
+-- whenever either monitor slot had to fall back to the laptop panel, which
+-- also covers a *partially* settled dock (e.g. the main monitor's EDID was
+-- readable but the second one's DP link hadn't finished training yet). A
+-- caller should treat COMPLETE == false as "re-check once more monitors
+-- show up" regardless of what LOCATION says -- see
+-- schedule_reload_if_incomplete() below.
 function M.resolve(laptop_desc)
     local edid = connected_edid()
 
@@ -108,27 +114,32 @@ function M.resolve(laptop_desc)
     end
 
     -- Pick the first candidate that is actually plugged in; the fallback is
-    -- used unconditionally if neither desk is attached.
+    -- used unconditionally if neither desk is attached. Also reports whether
+    -- a real match was found, so the caller can tell "this slot is
+    -- genuinely empty" apart from "this monitor's DP link just hasn't
+    -- finished training yet" -- see the `complete` return of resolve() below.
     local function first_attached(candidates, fallback)
         for _, c in ipairs(candidates) do
-            if attached(c.serial) then return c.desc end
+            if attached(c.serial) then return c.desc, true end
         end
-        return fallback
+        return fallback, false
     end
 
     if attached("1W6YK03") or attached("H3WW5V3") then
+        -- monitor1 always matches here -- it's the same serial pair that
+        -- decided we're in this branch at all.
         local monitor1 = first_attached({
             { serial = "1W6YK03", desc = HOME_MAIN   },
             { serial = "H3WW5V3", desc = OFFICE_MAIN },
         }, laptop_desc)
 
-        local monitor2 = first_attached({
+        local monitor2, monitor2_matched = first_attached({
             { serial = "G4LMTJ009579", desc = HOME_RIGHT   },
             { serial = "1G3X5V3",      desc = OFFICE_RIGHT },
         }, laptop_desc)
 
         local location = attached("1W6YK03") and "home" or "office"
-        return monitor1, monitor2, location
+        return monitor1, monitor2, location, monitor2_matched
     end
 
     -- Neither known desk: fall back generically instead of collapsing both
@@ -141,21 +152,35 @@ function M.resolve(laptop_desc)
         if generic_swap_wanted() then
             first, second = second, first
         end
-        return first, second, "generic"
+        return first, second, "generic", true
     elseif #externals == 1 then
-        return externals[1], laptop_desc, "generic"
+        -- Only one DRM connector has come up so far -- could be a genuine
+        -- single-external desk, or the second one is still link-training.
+        -- Not complete: let the caller re-check once another monitor shows up.
+        return externals[1], laptop_desc, "generic", false
     end
 
-    return laptop_desc, laptop_desc, "undocked"
+    return laptop_desc, laptop_desc, "undocked", false
 end
 
--- Re-resolve the desk once the dock has settled, if resolve() looked undocked
--- at config load. resolve() reads EDID once, at load time -- if the dock's DP
--- links come up after Hyprland has started, no serial matches, MONITOR1..3 all
--- fall back to the laptop panel, and every workspace rule points there. With
--- the lid closed, liddock then sweeps everything onto whichever external it
--- finds first, which looks like "my workspaces are all on one screen". A
--- reload after the outputs are awake re-resolves the roles correctly.
+-- Re-resolve the desk once the dock has settled, if resolve() came back
+-- incomplete at config load. resolve() reads EDID/connector state once, at
+-- load time -- if the dock's DP links come up after Hyprland has started, a
+-- monitor slot falls back to the laptop panel and every workspace rule tied
+-- to it points there instead. With the lid closed, liddock then sweeps
+-- everything onto whichever external it finds first, which looks like "my
+-- workspaces are all on one screen". A reload after the outputs are awake
+-- re-resolves the roles correctly.
+--
+-- This covers two cases, both signalled by resolve()'s `complete` return
+-- being false:
+--   * fully undocked at load time (LOCATION == "undocked"), the original bug;
+--   * *partially* docked at load time -- a known desk (or one external, in
+--     the generic-desk case) was matched, but the second monitor's slot fell
+--     back to the laptop panel because that link hadn't trained yet. This one
+--     used to slip through because the old guard only checked
+--     LOCATION == "undocked", so a desk that got *half* detected was never
+--     re-resolved and MONITOR2 stayed pinned to the laptop panel all session.
 --
 -- Reacts to the real monitor.added event instead of polling on a fixed
 -- schedule. A timed retry loop (2 checks/8s, then widened to 4 checks/16s
@@ -166,21 +191,26 @@ end
 -- to run out: it doesn't matter whether the dock takes 5s or 50s.
 --
 -- Call from each profile's "hyprland.start" autostart handler, passing the
--- LOCATION resolve() already returned at load. hyprland.start fires on every
--- config reload, not just compositor boot (see the hypridle pgrep guard
--- above for the same reason), so this can be called many times per session.
+-- `complete` value resolve() already returned at load. hyprland.start fires
+-- on every config reload, not just compositor boot (see the hypridle pgrep
+-- guard above for the same reason), so this can be called many times per
+-- session.
 --
 -- Two guards, both load-bearing:
---   * only when resolve() returned "undocked" -- a correctly detected desk is
---     never reloaded out from under it;
---   * a marker in the instance's runtime dir, because an unrecognised screen
---     (hotel TV, meeting room projector) still resolves to "undocked" after
---     the reload and would otherwise register a fresh listener and reload
---     forever. The marker path contains $HYPRLAND_INSTANCE_SIGNATURE, so it
---     is unique per compositor start and survives reloads within one session
---     (a plain Lua flag would not -- reload re-executes this whole module).
-function M.schedule_reload_if_undocked(location)
-    if location ~= "undocked" then return end
+--   * only when resolve() returned complete == false -- a fully detected
+--     desk is never reloaded out from under it;
+--   * a marker in the instance's runtime dir, because an unrecognised single
+--     screen (hotel TV, meeting room projector) stays incomplete forever and
+--     would otherwise register a fresh listener and reload every single time
+--     hyprland.start fires. The marker path contains
+--     $HYPRLAND_INSTANCE_SIGNATURE, so it is unique per compositor start and
+--     survives reloads within one session (a plain Lua flag would not --
+--     reload re-executes this whole module). A listener left registered
+--     without ever firing again (no second monitor ever shows up) is
+--     harmless -- it's event-driven, not a poll, so it costs nothing while
+--     idle.
+function M.schedule_reload_if_incomplete(complete)
+    if complete then return end
 
     local marker = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/hypr/" ..
         (os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "") .. "/.desk-reloaded"

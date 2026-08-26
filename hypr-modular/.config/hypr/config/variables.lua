@@ -27,7 +27,7 @@ CALCULATOR   = "gnome-calculator"
 
 local LAPTOP = "desc:LG Display 0x06B3"
 
-MONITOR1, MONITOR2, LOCATION = require("shared.deskresolve").resolve(LAPTOP)
+MONITOR1, MONITOR2, LOCATION, DESK_COMPLETE = require("shared.deskresolve").resolve(LAPTOP)
 
 MONITOR3 = LAPTOP
 PRIMARY_MONITOR = MONITOR1

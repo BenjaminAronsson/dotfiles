@@ -21,10 +21,10 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
 
     -- Re-resolve the desk once the dock has settled -- see the doc comment on
-    -- schedule_reload_if_undocked() in shared/deskresolve.lua for why this is
-    -- needed and how the reload-loop guards work. Shared with hypr-classic so
-    -- the fix doesn't end up hand-maintained in two places.
-    require("shared.deskresolve").schedule_reload_if_undocked(LOCATION)
+    -- schedule_reload_if_incomplete() in shared/deskresolve.lua for why this
+    -- is needed and how the reload-loop guards work. Shared with hypr-classic
+    -- so the fix doesn't end up hand-maintained in two places.
+    require("shared.deskresolve").schedule_reload_if_incomplete(DESK_COMPLETE)
 
     -- Report which desk we resolved to, so a misdetected dock is obvious
     -- rather than showing up later as workspaces on the wrong screen.
