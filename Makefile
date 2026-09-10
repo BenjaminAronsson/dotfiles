@@ -9,8 +9,11 @@
 #                 agent, so none of waybar/wofi/dunst/hyprpaper is used, and
 #                 the theme is generated from the wallpaper.
 #
-#   classic       Desktop, hand-assembled stack: waybar + wofi + dunst +
-#                 hyprpaper + hyprlock, all themed Catppuccin Mocha.
+#   classic       Desktop, hand-assembled stack: quickshell (bar, launcher,
+#                 notifications) + hyprpaper + hyprlock, all themed
+#                 Catppuccin Mocha. quickshell replaced waybar/wofi/dunst;
+#                 it is not packaged for Ubuntu and must be built from
+#                 source against the system Qt (see ~/src/quickshell).
 #
 # Usage:
 #   make                  deploy the profile matching this machine's hostname
@@ -55,7 +58,7 @@ COMMON  := starship backgrounds environment scripts hypridle hypr-shared pipewir
 LAPTOP  := hypr-modular kitty-modular
 
 # Desktop: monolithic Hyprland config plus the full hand-rolled stack.
-CLASSIC := hypr-classic kitty-classic waybar wofi dunst hyprpaper hyprlock hyprmocha swappy flameshot
+CLASSIC := hypr-classic kitty-classic quickshell hyprpaper hyprlock hyprmocha swappy flameshot
 
 # Laptop, but stowed with --no-folding and therefore kept out of the lists
 # above. Both directories noctalia owns (~/.config/noctalia and
@@ -101,7 +104,7 @@ cachyos-dell: ## Deploy the laptop profile (CachyOS + noctalia)
 	$(STOW) $(COMMON) $(LAPTOP)
 	$(STOW) --no-folding $(NOFOLD)
 
-classic: ## Deploy the desktop profile (waybar + wofi + dunst + Mocha)
+classic: ## Deploy the desktop profile (quickshell + Mocha)
 	$(STOW) $(COMMON) $(CLASSIC)
 
 unstow: ## Remove all symlinks from ~
