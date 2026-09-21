@@ -295,9 +295,14 @@ hl.config({
 
 hl.config({
     misc = {
-        force_default_wallpaper = 0,
-        disable_hyprland_logo   = 0,
-        background_color        = "rgb(1e1e2e)",
+        force_default_wallpaper    = 0,
+        disable_hyprland_logo      = 0,
+        background_color           = "rgb(1e1e2e)",
+        -- If hyprlock dies without unlocking, Hyprland keeps the session locked
+        -- and refuses every replacement lock screen, so there is no password box
+        -- to type into and no way back in except a TTY. This lets a freshly
+        -- launched hyprlock adopt the orphaned lock. See: recover-ui
+        allow_session_lock_restore = true,
     },
 })
 
