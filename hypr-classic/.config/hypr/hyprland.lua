@@ -571,17 +571,20 @@ hl.layer_rule({ name = "blur-launcher", match = { namespace = "^launcher$" }, bl
 -- anchors), so plain blur already stays confined to the cards' own background.
 hl.layer_rule({ name = "blur-notifications", match = { namespace = "^notifications$" }, blur = true })
 
--- PWA class is "msedge-_<extension-id>-Default", not Chrome's "crx__" prefix,
--- since this profile runs Edge as the PWA host (see `browser` above).
+-- PWA class is "msedge-<extension-id>-Default", not Chrome's "crx__" prefix,
+-- since this profile runs Edge as the PWA host (see `browser` above). Confirmed
+-- against a live `hyprctl clients -j` -- an earlier fix assumed an
+-- "msedge-_<id>" underscore that Edge doesn't actually emit, so this rule
+-- silently never matched and Teams/Outlook opened on the active workspace.
 hl.window_rule({
     name  = "teams-pwa-workspace",
-    match = { class = "msedge-_ompifgpmddkgmclendfeacglnodjjndh-Default" },
+    match = { class = "msedge-ompifgpmddkgmclendfeacglnodjjndh-Default" },
     workspace = "5 silent",
 })
 
 hl.window_rule({
     name  = "outlook-pwa-workspace",
-    match = { class = "msedge-_faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
+    match = { class = "msedge-faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
     workspace = "5 silent",
 })
 

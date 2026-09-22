@@ -28,8 +28,6 @@ Rectangle {
     implicitHeight: col.implicitHeight + pad * 2
     height: implicitHeight
 
-    Component.onCompleted: startAt = Date.now()
-
     Timer {
         running: card.total > 0
         repeat: true
