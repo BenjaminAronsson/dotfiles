@@ -85,7 +85,7 @@ local fileManager = "nautilus"
 local editor      = "code"
 local calculator  = "gnome-calculator"
 local browser     = "microsoft-edge"
-local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scripts/launcher.sh"
+local menu        = "qs ipc call launcher toggle"
 
 
 -------------------
@@ -98,7 +98,10 @@ local menu        = "pkill wofi || " .. os.getenv("HOME") .. "/.config/wofi/scri
 -- Or execute your favorite apps at launch like this:
 --
 hl.on("hyprland.start", function ()
-   hl.exec_cmd("waybar > " .. os.getenv("HOME") .. "/.cache/waybar.log 2>&1 & dunst & swayosd-server & hypridle & /usr/local/bin/hyprpaper & nm-applet --indicator & blueman-applet & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
+   -- quickshell provides the bar, launcher and notifications (replaces
+   -- waybar/wofi/dunst). Its own NotificationServer owns the notifications
+   -- DBus name, so dunst must not also be started.
+   hl.exec_cmd("qs > " .. os.getenv("HOME") .. "/.cache/quickshell.log 2>&1 & swayosd-server & hypridle & /usr/local/bin/hyprpaper & nm-applet --indicator & blueman-applet & " .. os.getenv("HOME") .. "/.config/hypr/scripts/battery-monitor.sh &")
    hl.exec_cmd("wl-paste --watch cliphist store")
    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-dark-cursors 28")
    hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
@@ -126,6 +129,13 @@ end)
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+
+-- quickshell (qs) is installed to ~/.local/bin, not /usr/local/bin (the
+-- cmake install step needs root, which this session doesn't have) -- and
+-- Hyprland's own process environment has no ~/.local/bin on PATH, so every
+-- `qs ...` exec_cmd (autostart, mainMod+Space/Escape) would fail with
+-- "command not found" without this.
+hl.env("PATH", os.getenv("HOME") .. "/.local/bin:" .. (os.getenv("PATH") or ""))
 
 
 -----------------------
@@ -247,7 +257,8 @@ hl.animation({ leaf = "zoomFactor",    enabled = true,  speed = 7,    bezier = "
 --     rounding    = 0,
 -- })
 
--- wofi (mainMod+Space launcher) intermittently fails its wlr-layer-shell
+-- wofi (now only the mainMod+V cliphist dmenu popup -- the app launcher
+-- itself moved to quickshell) intermittently fails its wlr-layer-shell
 -- registry check and falls back to a normal tiled window; float it so that
 -- fallback is still a visible, usable popup instead of an easy-to-miss tile.
 -- See linux-bugs/bugs/BUG-011-wofi-freeze-login-window/README.md
@@ -284,9 +295,14 @@ hl.config({
 
 hl.config({
     misc = {
-        force_default_wallpaper = 0,
-        disable_hyprland_logo   = 0,
-        background_color        = "rgb(1e1e2e)",
+        force_default_wallpaper    = 0,
+        disable_hyprland_logo      = 0,
+        background_color           = "rgb(1e1e2e)",
+        -- If hyprlock dies without unlocking, Hyprland keeps the session locked
+        -- and refuses every replacement lock screen, so there is no password box
+        -- to type into and no way back in except a TTY. This lets a freshly
+        -- launched hyprlock adopt the orphaned lock. See: recover-ui
+        allow_session_lock_restore = true,
     },
 })
 
@@ -456,14 +472,19 @@ hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
 hl.bind("F8",                 hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | swappy -f -'"))
 hl.bind(mainMod .. " + F8",   hl.dsp.exec_cmd("sh -c 'grim - | swappy -f -'"))
 
--- Clipboard history (cliphist)
+-- Clipboard history (cliphist). Still piped through wofi --dmenu -- quickshell's
+-- launcher has no dmenu-style stdin mode -- but the wofi package/style.css was
+-- dropped with the rest of the waybar/wofi/dunst stack, so this popup now uses
+-- wofi's unstyled defaults instead of the old Catppuccin theming.
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("sh -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
 
--- Notifications (dunst)
-hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("dunstctl history-pop"))
+-- Notifications: dunst (and its history-pop bind) are gone, replaced by
+-- quickshell's own NotificationServer. It has no history/replay UI yet, so
+-- there is currently no equivalent for mainMod+A.
 
--- Power/logout menu (wlogout)
-hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("pkill wlogout || wlogout"), { locked = true })
+-- Power/session menu — quickshell launcher's "power" mode (Lock, Logout,
+-- Suspend, Reboot, Shutdown). Replaces wlogout.
+hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call launcher power"), { locked = true })
 
 
 --------------------------------
@@ -531,17 +552,39 @@ hl.window_rule({
 -- })
 -- overlayLayerRule:set_enabled(false)
 
--- PWA class is "msedge-_<extension-id>-Default", not Chrome's "crx__" prefix,
--- since this profile runs Edge as the PWA host (see `browser` above).
+-- quickshell (bar, launcher, notifications) relies on these to get the
+-- frosted-glass look -- see Theme.qml's panelBg/popoverBg comments.
+--
+-- "waybar" is shared by Bar.qml (just the 32px strip) and Popover.qml, which
+-- is a full-screen transparent PanelWindow so its dropdown card can be
+-- positioned anywhere under the bar. Without ignore_alpha, blur would cover
+-- Popover's whole transparent surface -- i.e. the entire screen -- every time
+-- a popover opens, not just the bar strip / card itself.
+hl.layer_rule({ name = "blur-waybar", match = { namespace = "^waybar$" }, blur = true, ignore_alpha = 0.2 })
+
+-- Launcher.qml *is* meant to blur the whole screen: it's a full-screen
+-- PanelWindow with a semi-transparent dim rectangle behind the centered
+-- dialog, so the dim should read as frosted glass too. No ignore_alpha here.
+hl.layer_rule({ name = "blur-launcher", match = { namespace = "^launcher$" }, blur = true })
+
+-- Notifications.qml's PanelWindow is sized to its cards (no full-screen
+-- anchors), so plain blur already stays confined to the cards' own background.
+hl.layer_rule({ name = "blur-notifications", match = { namespace = "^notifications$" }, blur = true })
+
+-- PWA class is "msedge-<extension-id>-Default", not Chrome's "crx__" prefix,
+-- since this profile runs Edge as the PWA host (see `browser` above). Confirmed
+-- against a live `hyprctl clients -j` -- an earlier fix assumed an
+-- "msedge-_<id>" underscore that Edge doesn't actually emit, so this rule
+-- silently never matched and Teams/Outlook opened on the active workspace.
 hl.window_rule({
     name  = "teams-pwa-workspace",
-    match = { class = "msedge-_ompifgpmddkgmclendfeacglnodjjndh-Default" },
+    match = { class = "msedge-ompifgpmddkgmclendfeacglnodjjndh-Default" },
     workspace = "5 silent",
 })
 
 hl.window_rule({
     name  = "outlook-pwa-workspace",
-    match = { class = "msedge-_faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
+    match = { class = "msedge-faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
     workspace = "5 silent",
 })
 

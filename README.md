@@ -9,14 +9,20 @@ The two machines run genuinely different desktops, so packages are grouped into
 |---|---|---|
 | Machine | Dell Precision 5560, CachyOS | desktop |
 | Hyprland config | modular, `config/*.lua` | monolithic `hyprland.lua` |
-| Bar / launcher / notifications | noctalia | waybar / wofi / dunst |
+| Bar / launcher / notifications | noctalia | quickshell (custom QML) |
 | Wallpaper, clipboard, screenshots | noctalia | hyprpaper, cliphist, grim+slurp+swappy |
 | Lock screen | noctalia | hyprlock |
 | Theme | generated from wallpaper | Catppuccin Mocha, fixed |
 
 noctalia replaces most of the hand-assembled stack on the laptop, which is why
-`waybar`, `wofi`, `dunst`, `hyprpaper`, `hyprlock` and `hyprmocha` are only
-stowed in the `classic` profile.
+`hyprpaper`, `hyprlock` and `hyprmocha` are only stowed in the `classic`
+profile. `classic` used to run waybar + wofi + dunst for the bar, launcher and
+notifications; that hand-rolled stack was replaced by a custom quickshell
+config (`quickshell/`, migrated from an old Fedora-based dotfiles setup).
+wofi itself is still installed and used for one thing outside the launcher:
+the mainMod+V cliphist popup (`cliphist list | wofi --dmenu | ...`) — its
+`wofi` stow package (config + Catppuccin style.css) was dropped, so that
+popup now renders with wofi's unstyled defaults.
 
 ## Usage
 
@@ -82,17 +88,36 @@ aborts the whole run. If that happens, delete the offending links and re-run
 ## Dependencies
 
 Both profiles need: `stow` `hyprland` `kitty` `starship` `hypridle`
-`brightnessctl` `libnotify`
+`brightnessctl` `libnotify` `zoxide`
+
+`zoxide` is used via its `z` alias (`z <partial-path>` jumps to a frecent
+directory instead of `cd`). Not stowed by this repo — installed and
+initialized through the shell's own config (`zoxide init fish | source`, or
+equivalent), which lives outside this repo.
 
 **Laptop** additionally: `noctalia` `ttf-meslo-nerd` `satty`
 
-**Desktop** additionally: `waybar` `wofi` `dunst` `hyprpaper` `hyprlock`
-`swayosd` `cliphist` `grim` `slurp` `swappy` `wlogout` `playerctl` `nautilus`
-`ttf-cascadia-code-nerd` `network-manager-gnome` `blueman`
+**Desktop** additionally: `wofi` (cliphist popup only) `hyprpaper` `hyprlock`
+`swayosd` `cliphist` `grim` `slurp` `swappy` `playerctl` `nautilus`
+`ttf-cascadia-code-nerd` `network-manager-gnome` `blueman` `fd-find`
 
 The desktop is always Ubuntu, so these are apt package names — `blueman`
 matches its Arch name too, but `network-manager-gnome` is `nm-applet`'s
-Ubuntu package (the Arch equivalent is `network-manager-applet`).
+Ubuntu package (the Arch equivalent is `network-manager-applet`). Ubuntu
+also renames the `fd-find` binary to `fdfind` (name clash with another
+package), which is why `quickshell/launcher/Launcher.qml` hardcodes
+`/usr/bin/fdfind` for its file-search mode instead of looking up `fd`.
+
+**Desktop, quickshell specifically:** not packaged for Ubuntu — it links Qt
+private APIs and must be rebuilt from source against whatever Qt is
+currently installed, or it crashes with ABI mismatches after a Qt update.
+Build it yourself (see `BUILD.md` in the
+[quickshell repo](https://github.com/quickshell-mirror/quickshell)) into
+e.g. `~/src/quickshell`, then `cmake --install build` so `qs` lands on
+`PATH` (`/usr/local/bin`, same as this machine's hand-built Hyprland). It
+also needs three small Rust TUIs on `PATH` at `~/.cargo/bin`, opened from
+the bar's network/bluetooth/audio popovers: `cargo install impala-nm
+bluetui wiremix` (needs `libdbus-1-dev` and `libclang-dev` at build time).
 
 A missing font fails silently — the terminal just falls back to a default
 rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
@@ -103,12 +128,13 @@ rather than erroring, so check `fc-list | grep -i <family>` if it looks wrong.
 
 **Laptop** — `hypr-modular` `kitty-modular` `noctalia`
 
-**Desktop** — `hypr-classic` `kitty-classic` `waybar` `wofi` `dunst`
+**Desktop** — `hypr-classic` `kitty-classic` `quickshell` `wofi`
 `hyprpaper` `hyprlock` `hyprmocha` `swappy` `flameshot`
 
 `scripts` holds `lock.sh`, which picks whichever locker the machine has, and
-`battery-monitor.sh`, which uses `notify-send` so it works with both dunst and
-noctalia. That is what lets `hypridle.conf` stay shared.
+`battery-monitor.sh`, which uses `notify-send` so it works with both
+quickshell's NotificationServer and noctalia. That is what lets
+`hypridle.conf` stay shared.
 
 ## noctalia config
 
@@ -140,6 +166,37 @@ Both files are stowed, so the lock screen survives a rebuild. Two consequences:
   to it is lost on the next UI change. Document it here instead.
 - Changing a setting in the UI shows up as a diff in this repo. That is the
   point — review it and commit when you are happy with it.
+
+## quickshell config
+
+`quickshell/.config/quickshell/` is a custom QML shell (bar + app launcher +
+notification daemon), migrated from an old Fedora-based dotfiles setup at
+`~/stuff/dotfiles` where it was still being built out. It replaces
+waybar/wofi/dunst entirely on the `classic` profile — see the build/install
+notes under Dependencies above, since `qs` has to be compiled locally.
+
+- **Theme**: `Theme.qml` hardcodes a palette (a "vague.nvim"-style teal/steel
+  scheme, not Catppuccin Mocha) and `CaskaydiaCove Nerd Font` — changed from
+  the Fedora machine's `FiraCode Nerd Font`, which isn't installed here. The
+  color palette was left as migrated rather than reworked into Mocha; revisit
+  `Theme.qml` if the mismatch with hyprlock/wallpaper bothers you.
+- **Terminal**: every `foot -e ...` invocation (file open, run mode, the
+  network/bluetooth/audio TUI popovers, temperature's btop) was changed to
+  `kitty -e ...`, since this machine has no `foot` installed and already
+  standardizes on kitty (see `terminal` in `hyprland.lua`).
+- **State**: launcher frecency and the blue-light-filter toggle persist to
+  `~/.local/state/quickshell/` (via `Quickshell.statePath()`), not under
+  `~/.config/quickshell` — so unlike noctalia, this package does not need
+  `--no-folding`; plain `stow`/`restow` is fine.
+- **Notifications**: quickshell's `NotificationServer` replaces dunst outright
+  (only one process can own the notifications DBus name at a time — dunst
+  must stay out of autostart). It has no history/replay UI, so the old
+  mainMod+A (`dunstctl history-pop`) bind has no equivalent and was removed.
+- **Power/session menu**: mainMod+Escape now opens the launcher's built-in
+  "power" mode (Lock/Logout/Suspend/Reboot/Shutdown) instead of `wlogout`.
+- Rebuild `qs` from `~/src/quickshell` after any Qt update — it links Qt
+  private APIs and will crash with ABI-mismatch errors otherwise (see
+  `BUILD.md` in the quickshell repo).
 
 The package is stowed with `--no-folding`, because both directories also hold
 state noctalia writes itself (clipboard history, notification history, plugins,
