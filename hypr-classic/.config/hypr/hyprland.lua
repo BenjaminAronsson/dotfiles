@@ -560,13 +560,13 @@ hl.window_rule({
 hl.window_rule({
     name  = "rider-workspace",
     match = { class = "jetbrains-rider" },
-    workspace = "4 silent",
+    workspace = "4",
 })
 
 hl.window_rule({
     name  = "spotify-workspace",
     match = { class = "Spotify" },
-    workspace = "8 silent",
+    workspace = "8",
 })
 
 -- Hyprland-run windowrule
