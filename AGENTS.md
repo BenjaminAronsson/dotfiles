@@ -129,6 +129,38 @@ rule on every lid open with "auto", relocating the physically-left panel to the
 far right of the layout. Anything genuinely machine-specific belongs in the
 `setup{}` call, not in a second copy.
 
+## App → workspace rules are shared
+
+Which workspace each app opens on lives in
+`hypr-shared/.config/hypr/shared/appworkspaces.lua`, deployed to both machines
+as part of `COMMON` and pulled in with `require("shared.appworkspaces").setup()`
+— from `windowrules.lua` on the laptop and from `hyprland.lua` on the desktop.
+One ruleset, same numbers on both machines, so muscle memory carries over.
+Rules for apps that only exist on one machine (the Edge PWAs, Rider) are kept
+in the shared file and are simply inert on the other; **do not** branch them
+per profile.
+
+Because the profiles cut their workspace blocks differently, identical numbers
+mean a *different screen*: workspace 8 is the right-hand external on `classic`
+but the laptop panel on `cachyos-dell`, so Spotify is on the lid screen there
+and gets swept by `liddock` when the lid closes. That was a deliberate trade
+in favour of identical numbering.
+
+**Window-rule `class` is a case-sensitive regex, and you must observe it, never
+guess it.** This has now caused two silent no-match bugs: an assumed
+`msedge-_<id>` underscore that Edge does not emit (Teams/Outlook opened on the
+active workspace), and a `Chromium` spelling that never matched the laptop's
+lowercase `chromium`. A `.desktop` file's `StartupWMClass` is not authoritative
+either — `spotify-launcher.desktop` says `spotify` while the window reports
+`Spotify`. Confirm against a live window before adding a rule:
+
+```
+hyprctl clients -j | jq -r '.[] | "\(.class)\t\(.title)"'
+```
+
+Note that `hyprctl reload` re-homes *existing* windows to match these rules, so
+a reload is enough to test a change — no need to restart the app.
+
 ## Keybinding conflicts
 
 `binds.lua` binds `SUPER+SHIFT+[0-9]` in a loop near the end of the file. Any
