@@ -570,46 +570,12 @@ hl.layer_rule({ name = "blur-launcher", match = { namespace = "^launcher$" }, bl
 -- anchors), so plain blur already stays confined to the cards' own background.
 hl.layer_rule({ name = "blur-notifications", match = { namespace = "^notifications$" }, blur = true })
 
--- PWA class is "msedge-<extension-id>-Default", not Chrome's "crx__" prefix,
--- since this profile runs Edge as the PWA host (see `browser` above). Confirmed
--- against a live `hyprctl clients -j` -- an earlier fix assumed an
--- "msedge-_<id>" underscore that Edge doesn't actually emit, so this rule
--- silently never matched and Teams/Outlook opened on the active workspace.
-hl.window_rule({
-    name  = "teams-pwa-workspace",
-    match = { class = "msedge-ompifgpmddkgmclendfeacglnodjjndh-Default" },
-    workspace = "5 silent",
-})
-
-hl.window_rule({
-    name  = "outlook-pwa-workspace",
-    match = { class = "msedge-faolnafnngnfdaknnbpnkhgohbobgegn-Default" },
-    workspace = "5 silent",
-})
-
-hl.window_rule({
-    name  = "claude-workspace",
-    match = { class = "com.anthropic.Claude" },
-    workspace = "6 silent",
-})
-
-hl.window_rule({
-    name  = "browser-workspace",
-    match = { class = "^(microsoft-edge|google-chrome|Chromium)$" },
-    workspace = "3 silent",
-})
-
-hl.window_rule({
-    name  = "rider-workspace",
-    match = { class = "jetbrains-rider" },
-    workspace = "4",
-})
-
-hl.window_rule({
-    name  = "spotify-workspace",
-    match = { class = "Spotify" },
-    workspace = "8",
-})
+-- App -> workspace assignments (Teams/Outlook/Claude/browser/IDE/Spotify).
+-- Shared with hypr-modular so both machines pin apps to the same numbers --
+-- see shared/appworkspaces.lua, which also records why the PWA class strings
+-- look the way they do. Do not re-inline these here; that is how the two
+-- profiles drifted into disagreeing about Chromium's capitalisation.
+require("shared.appworkspaces").setup()
 
 -- Hyprland-run windowrule
 hl.window_rule({

@@ -49,6 +49,13 @@ hl.window_rule({
     fullscreen_state = 0,
 })
 
+-- App -> workspace assignments (Claude/browser/VS Code/Spotify, plus the
+-- desktop's Teams/Outlook/Rider rules, which are inert here). Shared with
+-- hypr-classic so both machines pin apps to the same numbers -- see
+-- shared/appworkspaces.lua, and note the caveat there about workspace 8
+-- being the laptop panel on this profile.
+require("shared.appworkspaces").setup()
+
 -- Apps
 hl.window_rule({ match = { class = "^(.*\\.exe)$", float = true }, monitor = PRIMARY_MONITOR, center = true, fullscreen_state = 0 })
 hl.window_rule({ match = { class = "^(vesktop|discord)$" }, monitor = PRIMARY_MONITOR })
