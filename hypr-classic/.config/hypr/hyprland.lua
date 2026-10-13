@@ -385,6 +385,7 @@ hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "d" }))
 hl.bind(mainMod .. " + ALT + 1", hl.dsp.window.move({ monitor = MONITOR1 }))
 hl.bind(mainMod .. " + ALT + 2", hl.dsp.window.move({ monitor = MONITOR2 }))
 hl.bind(mainMod .. " + ALT + 3", hl.dsp.window.move({ monitor = MONITOR3 }))
+hl.bind(mainMod .. " + ALT + S", hl.dsp.exec_cmd("~/.config/hypr/scripts/swap-monitors.sh"))
 hl.bind(mainMod .. " + SHIFT + mouse_up",        hl.dsp.window.move({ monitor = "+1" }))
 hl.bind(mainMod .. " + SHIFT + mouse_down",      hl.dsp.window.move({ monitor = "-1" }))
 hl.bind(mainMod .. " + CONTROL + SHIFT + right", hl.dsp.window.move({ workspace = "r+1" }))
@@ -445,13 +446,11 @@ local WALLPAPER = os.getenv("HOME") .. "/.config/backgrounds/nice-blue-backgroun
 -- calls it at each point the old inline copy did. The laptop passes no hook:
 -- noctalia owns the wallpaper there and handles this itself.
 local function ensure_wallpaper()
-    -- os.execute returns a number on Lua 5.1/LuaJIT but a boolean on 5.2+
-    local ok = os.execute("pgrep -x hyprpaper >/dev/null 2>&1")
-    if ok == true or ok == 0 then
-        hl.exec_cmd("hyprctl hyprpaper reload ," .. WALLPAPER)
-    else
-        hl.exec_cmd("/usr/local/bin/hyprpaper")
-    end
+    -- Restart rather than reload: hyprpaper 0.8 rejects `hyprctl hyprpaper
+    -- reload` ("invalid hyprpaper request"), and a Lua pgrep check can't work
+    -- (os.execute inside Hyprland always fails with "No child processes"), so
+    -- the old check-then-start piled up a new copy on every layout change.
+    hl.exec_cmd("pkill -x hyprpaper; exec /usr/local/bin/hyprpaper")
 end
 
 require("shared.liddock").setup({
