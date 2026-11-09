@@ -49,6 +49,11 @@ hl.monitor({
     scale = 1,
 })
 
+-- New office desk. U2412M panels use their native 1920x1200 mode.
+local deskresolve = require("shared.deskresolve")
+hl.monitor({ output = deskresolve.OFFICE_NEW_MAIN,  mode = "preferred", position = "1920x0", scale = 1 })
+hl.monitor({ output = deskresolve.OFFICE_NEW_RIGHT, mode = "preferred", position = "3840x0", scale = 1 })
+
 -- Catch-all for anything unknown: a meeting room projector, a hotel TV. Placed
 -- automatically to the right instead of stacking at 0x0 on top of the laptop.
 hl.monitor({

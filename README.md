@@ -217,6 +217,12 @@ numbers of whatever is plugged in — see
 `MONITOR2` (right) and `MONITOR3` (laptop panel) resolve to the right screens at
 either desk, so the workspace layout in `workspaces.lua` follows you.
 
+The new office setup uses two Dell U2412M screens at their native 1920×1200
+resolution: `YPPY077A34DS` is main (centre), and `YPPY075937ZS` is right.
+Both profiles recognize them by EDID serial through
+`hypr-shared/.config/hypr/shared/deskresolve.lua`; the previous P2422HE office
+pair remains supported.
+
 Roles resolve when the config **loads**, so after docking at a different desk
 run `hyprctl reload` to re-home the workspaces.
 

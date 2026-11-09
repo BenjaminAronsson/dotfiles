@@ -57,6 +57,10 @@ hl.monitor({ output = deskresolve.HOME_RIGHT,   mode = "preferred",    position 
 hl.monitor({ output = deskresolve.OFFICE_MAIN,  mode = "1920x1080@60", position = "1920x0", scale = 1 })
 hl.monitor({ output = deskresolve.OFFICE_RIGHT, mode = "1920x1080@60", position = "3840x0", scale = 1 })
 
+-- New office desk. U2412M panels use their native 1920x1200 mode.
+hl.monitor({ output = deskresolve.OFFICE_NEW_MAIN,  mode = "preferred", position = "1920x0", scale = 1 })
+hl.monitor({ output = deskresolve.OFFICE_NEW_RIGHT, mode = "preferred", position = "3840x0", scale = 1 })
+
 -- Catch-all for anything unknown: a meeting room projector, a hotel TV.
 hl.monitor({
     output   = "",

@@ -3,7 +3,7 @@
 -- Both laptops dock at the same two desks (home and office), so rather than
 -- hardcode one set of screens, each works out which desk it is at by reading
 -- the EDID of every connected output and looking for known serial numbers.
--- The four desk monitors are declared once here instead of forked into each
+-- The known desk monitors are declared once here instead of forked into each
 -- profile's own variables/hyprland file -- liddock.lua already learned that
 -- lesson the hard way (see its history: a duplicated position = "auto" bug).
 --
@@ -19,6 +19,11 @@ local HOME_RIGHT   = "desc:Ancor Communications Inc ASUS VC239 G4LMTJ009579"
 local OFFICE_MAIN  = "desc:Dell Inc. DELL P2422HE H3WW5V3"
 local OFFICE_RIGHT = "desc:Dell Inc. DELL P2422HE 1G3X5V3"
 
+local OFFICE_NEW_MAIN  = "desc:Dell Inc. DELL U2412M YPPY077A34DS"
+local OFFICE_NEW_RIGHT = "desc:Dell Inc. DELL U2412M YPPY075937ZS"
+
+M.OFFICE_NEW_MAIN  = OFFICE_NEW_MAIN
+M.OFFICE_NEW_RIGHT = OFFICE_NEW_RIGHT
 M.HOME_MAIN    = HOME_MAIN
 M.HOME_RIGHT   = HOME_RIGHT
 M.OFFICE_MAIN  = OFFICE_MAIN
@@ -125,17 +130,19 @@ function M.resolve(laptop_desc)
         return fallback, false
     end
 
-    if attached("1W6YK03") or attached("H3WW5V3") then
-        -- monitor1 always matches here -- it's the same serial pair that
+    if attached("1W6YK03") or attached("H3WW5V3") or attached("YPPY077A34DS") then
+        -- monitor1 always matches here -- it's the same set of serials that
         -- decided we're in this branch at all.
         local monitor1 = first_attached({
             { serial = "1W6YK03", desc = HOME_MAIN   },
             { serial = "H3WW5V3", desc = OFFICE_MAIN },
+            { serial = "YPPY077A34DS", desc = OFFICE_NEW_MAIN },
         }, laptop_desc)
 
         local monitor2, monitor2_matched = first_attached({
             { serial = "G4LMTJ009579", desc = HOME_RIGHT   },
             { serial = "1G3X5V3",      desc = OFFICE_RIGHT },
+            { serial = "YPPY075937ZS", desc = OFFICE_NEW_RIGHT },
         }, laptop_desc)
 
         local location = attached("1W6YK03") and "home" or "office"
